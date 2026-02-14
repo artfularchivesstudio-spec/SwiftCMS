@@ -20,6 +20,7 @@ let package = Package(
         .library(name: "CMSJobs", targets: ["CMSJobs"]),
         .library(name: "CMSApi", targets: ["CMSApi"]),
         .library(name: "CMSAdmin", targets: ["CMSAdmin"]),
+        .library(name: "CMSOpenAPI", targets: ["CMSOpenAPI"]),
         .executable(name: "cms", targets: ["CMSCLI"]),
     ],
     dependencies: [
@@ -66,6 +67,7 @@ let package = Package(
                 "CMSEvents",
                 "CMSJobs",
                 "CMSObjects",
+                "CMSOpenAPI",
             ]
         ),
 
@@ -216,6 +218,18 @@ let package = Package(
                 "CMSAuth",
                 "CMSEvents",
                 "CMSMedia",
+            ]
+        ),
+
+        // ─── CMSOpenAPI (OpenAPI + SDK Generation) ───────────────────
+        .target(
+            name: "CMSOpenAPI",
+            dependencies: [
+                .product(name: "Vapor", package: "vapor"),
+                .product(name: "Fluent", package: "fluent"),
+                "CMSCore",
+                "CMSSchema",
+                "CMSObjects",
             ]
         ),
 
