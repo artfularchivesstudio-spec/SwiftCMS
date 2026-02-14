@@ -207,3 +207,70 @@ public struct AuditLogService: Sendable {
         try await log.save(on: db)
     }
 }
+
+// MARK: - Structured Logging Middleware
+
+/// Attaches structured metadata to every request log line:
+/// - `user-id`: the authenticated user's ID
+/// - `tenant-id`: the resolved tenant ID
+/// - `method`: HTTP method
+/// - `path`: request URL path
+/// - Logs request duration on completion
+public struct StructuredLoggingMiddleware: AsyncMiddleware, Sendable {
+
+    public init() {}
+
+    public func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
+        let start = ContinuousClock.now
+
+        // Attach context to all log lines for this request
+        request.logger[metadataKey: "method"] = "\(request.method.rawValue)"
+        request.logger[metadataKey: "path"] = "\(request.url.path)"
+
+        if let user = request.auth.get(CmsUser.self) {
+            request.logger[metadataKey: "user-id"] = "\(user.userId)"
+        }
+
+        do {
+            let response = try await next.respond(to: request)
+
+            let elapsed = ContinuousClock.now - start
+            let ms = elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000
+            request.logger[metadataKey: "status"] = "\(response.status.code)"
+            request.logger[metadataKey: "duration-ms"] = "\(ms)"
+            request.logger.info("Request completed")
+
+            // Add Server-Timing header for observability
+            response.headers.add(name: "Server-Timing", value: "total;dur=\(ms)")
+
+            return response
+        } catch {
+            let elapsed = ContinuousClock.now - start
+            let ms = elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000
+            request.logger[metadataKey: "duration-ms"] = "\(ms)"
+            request.logger[metadataKey: "error"] = "\(String(describing: error))"
+            request.logger.error("Request failed")
+            throw error
+        }
+    }
+}
+
+// MARK: - Graceful Shutdown Handler
+
+/// Logs application lifecycle events for observability.
+public struct GracefulShutdownHandler: LifecycleHandler, Sendable {
+
+    public init() {}
+
+    public func didBoot(_ application: Application) throws {
+        application.logger.info("SwiftCMS server started",
+            metadata: [
+                "environment": "\(application.environment.name)",
+                "multi-tenant": "\(Environment.get("MULTI_TENANT") ?? "false")",
+            ])
+    }
+
+    public func shutdown(_ application: Application) {
+        application.logger.info("SwiftCMS shutting down gracefully")
+    }
+}

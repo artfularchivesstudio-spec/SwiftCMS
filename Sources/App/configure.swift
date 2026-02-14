@@ -19,20 +19,18 @@ public func configure(_ app: Application) async throws {
     // .env is loaded automatically by Vapor if present
 
     // ─── Database ─────────────────────────────────────────────────
+    let poolSize = Int(Environment.get("DB_POOL_SIZE") ?? "10") ?? 10
     if let databaseURL = Environment.get("DATABASE_URL") {
-        try app.databases.use(
-            .postgres(url: databaseURL),
+        var pgConfig = try SQLPostgresConfiguration(url: databaseURL)
+        app.databases.use(
+            .postgres(configuration: pgConfig, maxConnectionsPerEventLoop: poolSize),
             as: .psql
         )
-        app.logger.info("Using PostgreSQL database")
+        app.logger.info("Using PostgreSQL database (pool: \(poolSize) per event loop)")
     } else {
         app.databases.use(.sqlite(.memory), as: .sqlite)
         app.logger.warning("No DATABASE_URL set, using SQLite in-memory (development only)")
     }
-
-    // Connection pool tuning
-    let poolSize = Int(Environment.get("DB_POOL_SIZE") ?? "10") ?? 10
-    app.logger.info("Database pool size: \(poolSize)")
 
     // ─── Redis ────────────────────────────────────────────────────
     if let redisURL = Environment.get("REDIS_URL") {
@@ -65,20 +63,27 @@ public func configure(_ app: Application) async throws {
             ? .all : .any(allowedOrigins),
         allowedMethods: [.GET, .POST, .PUT, .DELETE, .PATCH, .OPTIONS],
         allowedHeaders: [.authorization, .contentType, .accept,
-                         .init("X-API-Key"), .init("X-Request-Id")]
+                         .init("X-API-Key"), .init("X-Request-Id"),
+                         .init("X-Tenant-ID")]
     )
     app.middleware.use(CORSMiddleware(configuration: corsConfig))
 
     // Security headers
     app.middleware.use(SecurityHeadersMiddleware())
 
-    // Request ID
+    // Request ID + structured logging
     app.middleware.use(RequestIdMiddleware())
+    app.middleware.use(StructuredLoggingMiddleware())
+
+    // Multi-tenancy (active only when MULTI_TENANT=true)
+    app.middleware.use(TenantContextMiddleware())
+    app.middleware.use(TenantScopedQueryModifier())
 
     // ─── Register Migrations ──────────────────────────────────────
     app.migrations.add(CreateRoles())
     app.migrations.add(CreateUsers())
     app.migrations.add(CreatePermissions())
+    app.migrations.add(CreateFieldPermissions())
     app.migrations.add(CreateApiKeys())
     app.migrations.add(CreateMediaFiles())
     app.migrations.add(CreateWebhooks())
@@ -88,6 +93,7 @@ public func configure(_ app: Application) async throws {
     app.migrations.add(CreateContentTypeDefinitions())
     app.migrations.add(CreateContentEntries())
     app.migrations.add(CreateContentVersions())
+    app.migrations.add(CreateSavedFilter())
     app.migrations.add(SeedDefaultRoles())
 
     // Auto-migrate in development
@@ -105,8 +111,15 @@ public func configure(_ app: Application) async throws {
     app.eventBus = InProcessEventBus()
 
     // ─── Module System ────────────────────────────────────────────
-    let moduleManager = ModuleManager()
+    let pluginRegistry = PluginRegistry()
+    let moduleManager = ModuleManager(pluginRegistry: pluginRegistry)
     app.cms.modules = moduleManager
+
+    // Register built-in plugins
+    PluginLoader.registerPlugins(registry: pluginRegistry)
+
+    // Discover and register additional plugins
+    moduleManager.discoverAndRegisterPlugins(modulesPath: "Modules", logger: app.logger)
 
     // Register core modules
     moduleManager.register(SearchModule())
@@ -135,7 +148,15 @@ public func configure(_ app: Application) async throws {
     // ─── Routes ───────────────────────────────────────────────────
     try routes(app)
 
+    // ─── Graceful Shutdown ────────────────────────────────────────
+    app.lifecycle.use(GracefulShutdownHandler())
+
     app.logger.info("SwiftCMS configured successfully")
+    if Environment.get("MULTI_TENANT")?.lowercased() == "true" {
+        app.logger.info("Multi-tenancy mode: ENABLED")
+    } else {
+        app.logger.info("Multi-tenancy mode: disabled (single-tenant)")
+    }
 }
 
 // MARK: - Storage Keys
