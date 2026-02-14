@@ -1,4 +1,14 @@
 <!DOCTYPE html>
+
+<!-- Track 2: Navigation & Efficiency Enhancements Implemented -->
+<!-- Features: -->
+<!-- ① Command Palette (Cmd+K) with Fuse.js fuzzy search -->
+<!-- ② Global Keyboard Shortcuts (Cmd+S, ?, g+d/c/m) -->
+<!-- ③ Client-side Breadcrumbs from URL paths -->
+<!-- ④ Toast Notification System with HTMX integration -->
+<!-- ⑤ Recent Items tracking in Command Palette -->
+<!-- ⑥ Keyboard Shortcuts Help Modal -->
+
 <html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
@@ -825,19 +835,48 @@
                        @input="filterCommands()">
             </div>
             <div class="max-h-80 overflow-y-auto p-2">
-                <template x-if="commandPalette.filteredItems.length === 0">
+                <template x-if="commandPalette.filteredItems.length === 0 && commandPalette.query">
                     <div class="p-4 text-center text-base-content/50 text-sm">No results found</div>
                 </template>
-                <template x-for="(item, index) in commandPalette.filteredItems" :key="item.title + item.url">
-                    <a :href="item.url || '#'" @click="item.action ? (eval(item.action), commandPalette.isOpen = false) : null"
-                       class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors"
-                       :class="index === commandPalette.selectedIndex ? 'bg-primary/10 text-primary' : 'hover:bg-base-200'">
-                        <span class="text-xs font-mono px-1.5 py-0.5 rounded bg-base-200 text-base-content/60" x-text="item.category"></span>
-                        <span class="flex-1" x-text="item.title"></span>
-                        <svg x-show="item.url" class="w-4 h-4 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </a>
+
+                <!-- Show recent items when query is empty -->
+                <template x-if="!commandPalette.query && commandPalette.recentItems.length > 0">
+                    <div>
+                        <div class="px-3 py-2 text-xs font-semibold text-base-content/60 uppercase tracking-wider">Recent</div>
+                        <template x-for="(item, index) in commandPalette.recentItems.slice(0, 5)" :key="item.title + item.url">
+                            <a :href="item.url || '#'" @click="item.action ? (eval(item.action), commandPalette.isOpen = false) : null"
+                               class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors"
+                               :class="index === commandPalette.selectedIndex ? 'bg-primary/10 text-primary' : 'hover:bg-base-200'">
+                                <span class="text-xs font-mono px-1.5 py-0.5 rounded bg-base-200 text-base-content/60" x-text="item.category"></span>
+                                <span class="flex-1 flex items-center gap-2">
+                                    <svg x-show="item.url" class="w-4 h-4 text-base-content/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span x-text="item.title"></span>
+                                </span>
+                                <svg x-show="item.url" class="w-4 h-4 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </a>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Show all results (or filtered) -->
+                <template x-if="commandPalette.query || commandPalette.recentItems.length === 0">
+                    <div>
+                        <template x-for="(item, index) in commandPalette.filteredItems" :key="item.title + item.url">
+                            <a :href="item.url || '#'" @click="item.action ? (eval(item.action), commandPalette.isOpen = false) : null"
+                               class="flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors"
+                               :class="index === commandPalette.selectedIndex ? 'bg-primary/10 text-primary' : 'hover:bg-base-200'">
+                                <span class="text-xs font-mono px-1.5 py-0.5 rounded bg-base-200 text-base-content/60" x-text="item.category"></span>
+                                <span class="flex-1" x-text="item.title"></span>
+                                <svg x-show="item.url" class="w-4 h-4 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                </svg>
+                            </a>
+                        </template>
+                    </div>
                 </template>
             </div>
             <div class="p-3 border-t border-base-300 flex gap-4 text-xs text-base-content/50">
