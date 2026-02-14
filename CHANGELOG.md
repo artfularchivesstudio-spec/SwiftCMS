@@ -4,6 +4,123 @@ All notable changes to SwiftCMS will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added — Admin UI Overhaul (Beyond Strapi)
+
+**Snapshot Test Infrastructure (Phase 1)**
+- swift-snapshot-testing dependency and CMSAdminTests target
+- LeafSnapshotTestCase helper for cross-platform HTML snapshot testing
+- Snapshot tests for login, dashboard, content types, content editor, content list
+- Test fixtures with sample content types and entries
+
+**Content Editor Fixes (Phase 2)**
+- Fixed field type heuristics (longText vs shortText based on maxLength)
+- JSON field type with collapsible code editor
+- Media picker field with UUID-based media library selector modal
+- Relation field with searchable dropdown
+- Polished autosave indicator with saving/saved/unsaved states
+
+**Power User Features (Phase 3)**
+- Command palette (Cmd+K) with Fuse.js fuzzy search
+- Keyboard shortcuts system (Cmd+S save, ? help, g+d/c/m vim-style nav)
+- Breadcrumb navigation (client-side path parsing)
+- Toast notification system with progress bars and auto-dismiss
+- AdminController passes contentTypes to base template context
+
+**Visual Polish & Micro-interactions (Phase 4)**
+- Animated stat counters on dashboard (requestAnimationFrame)
+- Skeleton loading states for HTMX transitions
+- Enhanced card hover effects with border color shift
+- Beautiful empty states for content list, media library, webhooks
+- Chart.js activity chart on dashboard (replacing placeholder)
+- Fixed `default function refreshSystemHealth()` JS syntax error
+
+**Settings Page Overhaul (Phase 5)**
+- Tabbed settings interface (General, API, Media, Advanced)
+- UI-ready design pattern for future backend settings
+
+**Documentation**
+- Admin UI Overhaul plan (`docs/admin/ADMIN_UI_OVERHAUL_PLAN.md`)
+
+### Added — Wave 3 Features (Planned)
+
+**GraphQL API (Agent 1)**
+- GraphQL endpoint at `/graphql` with Graphiti + Pioneer integration
+- Auto-generated schema from content type definitions
+- Query operations (contentEntries, contentEntry, contentTypes)
+- Mutation operations (createContentEntry, updateContentEntry, deleteContentEntry)
+- Subscription support for real-time updates
+- GraphQL Playground at `/graphql` for interactive queries
+- SDL introspection endpoint at `/graphql/schema`
+- Type-safe GraphQL types in `Sources/CMSApi/GraphQL/`
+
+**Admin UI Enhancements (Agent 3)**
+- Dark mode with system preference detection and manual toggle
+- Persistent theme preference saved to localStorage
+- Cross-tab theme synchronization
+- Smooth theme transitions (300ms)
+- Dark mode overrides for all UI components
+
+**Bulk Operations (Agent 3)**
+- Multi-entry selection with checkbox interface
+- Selection persistence across page navigation
+- Bulk actions: publish, unpublish, archive, delete, change locale
+- Real-time progress tracking during bulk operations
+- Undo functionality for bulk operations (30-minute window)
+- Mobile card view with selection support
+
+**Responsive Design (Agent 3)**
+- Mobile-first responsive design
+- Breakpoints: xs (639px), sm (640px), md (768px), lg (1024px), xl (1280px)
+- Off-canvas sidebar with hamburger menu on mobile
+- Card view for content entries on mobile devices
+- Touch-friendly interactions (44x44px minimum touch targets)
+- Swipe gestures for mobile card actions
+- Responsive tables with horizontal scroll on mobile
+
+**Content Preview System (Agent 1)**
+- Secure token-based content preview
+- Short-lived preview tokens (1-hour default TTL)
+- Draft content viewing without authentication
+- Preview link generation from admin panel
+- API endpoint for token generation
+- Preview access logging and auditing
+- Token revocation support
+
+**Caching & Performance (Agent 1)**
+- Redis-powered caching system
+- Configurable cache TTL and memory limits
+- Cache key prefixing for multi-tenant support
+- Automatic cache invalidation on content changes
+- Manual cache invalidation endpoints
+- Cache warming support
+- Cache metrics and monitoring
+
+**Observability (Agent 1)**
+- Structured JSON logging with context
+- OpenTelemetry integration for distributed tracing
+- Prometheus metrics endpoint at `/metrics`
+- Request latency histograms
+- Database query metrics
+- Cache hit/miss tracking
+- Business metrics (content operations, active users)
+- Health check endpoints (`/healthz`, `/ready`, `/live`)
+- Error tracking and aggregation
+
+**Documentation**
+- GraphQL API documentation (`docs/api/graphql.md`)
+- Dark mode guide (`docs/admin/dark-mode.md`)
+- Bulk operations guide (`docs/admin/bulk-operations.md`)
+- Responsive design guide (`docs/admin/responsive.md`)
+- Caching guide (`docs/operations/caching.md`)
+- Observability guide (`docs/operations/observability.md`)
+- Preview system guide (`docs/features/preview.md`)
+
+### Changed
+
+- Updated documentation summary with Wave 3 features
+
 ## [0.1.1] - 2026-02-14
 
 ### Fixed — Build Stabilization & Path Sanitization

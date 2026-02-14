@@ -226,6 +226,176 @@ This document summarizes all the documentation created for SwiftCMS v1.0.0 relea
 
 ## Next Steps for v1.0.0 Release
 
+### Wave 3 Documentation (Planned)
+
+#### GraphQL API Documentation
+**File**: `/Users/gurindersingh/Documents/Developer/Swift-CMS/docs/api/graphql.md`
+
+**Content**: GraphQL API documentation featuring:
+- Endpoint and authentication methods
+- Query operations (contentEntries, contentEntry, etc.)
+- Mutation operations (createContentEntry, updateContentEntry, deleteContentEntry)
+- Subscription support for real-time updates
+- Type system and field type mapping
+- Error handling and response formats
+- Query complexity and rate limiting
+- GraphQL Playground usage
+- Code examples for JavaScript/TypeScript and Swift
+- Best practices for efficient queries
+
+**Status**: Comprehensive GraphQL reference with examples
+
+#### Admin Panel Dark Mode Guide
+**File**: `/Users/gurindersingh/Documents/Developer/Swift-CMS/docs/admin/dark-mode.md`
+
+**Content**: Dark mode implementation guide:
+- System preference detection
+- Manual toggle functionality
+- Theme persistence across sessions
+- Theme customization with CSS custom properties
+- Accessibility compliance (WCAG contrast ratios)
+- Browser compatibility information
+- Theme storage format (localStorage)
+- Cross-tab synchronization
+- Tailwind dark mode implementation
+- Plugin development considerations
+
+**Status**: Complete dark mode implementation guide
+
+#### Bulk Operations Guide
+**File**: `/Users/gurindersingh/Documents/Developer/Swift-CMS/docs/admin/bulk-operations.md`
+
+**Content**: Bulk operations documentation:
+- Selection usage (desktop and mobile)
+- Selection persistence across sessions
+- Available bulk actions (publish, unpublish, archive, delete)
+- Progress tracking indicators
+- Undo functionality (30-minute window)
+- Permission requirements
+- API endpoint examples
+- Best practices and troubleshooting
+- Keyboard shortcuts
+- Mobile considerations
+
+**Status**: Comprehensive bulk operations guide
+
+#### Responsive Design Guide
+**File**: `/Users/gurindersingh/Documents/Developer/Swift-CMS/docs/admin/responsive.md`
+
+**Content**: Responsive design documentation:
+- Breakpoints and layout adaptations
+- Sidebar behavior across devices
+- Table-to-card view transformation
+- Touch interactions and gestures
+- Supported devices (mobile, tablet, desktop)
+- Browser compatibility matrix
+- Performance optimization
+- Touch-friendly form elements
+- Testing responsive design
+- Accessibility considerations
+
+**Status**: Complete responsive design guide
+
+#### Caching Guide
+**File**: `/Users/gurindersingh/Documents/Developer/Swift-CMS/docs/operations/caching.md`
+
+**Content**: Caching system documentation:
+- Redis configuration options
+- Cache strategies (content, query, schema, response)
+- Cache invalidation (automatic and manual)
+- Cache warming techniques
+- Cache monitoring and metrics
+- Best practices for cache usage
+- Troubleshooting common issues
+- Redis CLI commands
+- Advanced features (stampede prevention, compression)
+
+**Status**: Comprehensive caching guide
+
+#### Observability Guide
+**File**: `/Users/gurindersingh/Documents/Developer/Swift-CMS/docs/operations/observability.md`
+
+**Content**: Observability and monitoring documentation:
+- OpenTelemetry setup and configuration
+- Structured logging (JSON format)
+- Metrics collection (HTTP, database, cache, business)
+- Distributed tracing with OpenTelemetry
+- Health check endpoints (`/healthz`, `/ready`, `/live`)
+- Error tracking and aggregation
+- Prometheus metrics endpoint
+- Grafana dashboard configuration
+- Performance optimization tips
+- Best practices and troubleshooting
+
+**Status**: Complete observability guide
+
+#### Preview System Guide
+**File**: `/Users/gurindersingh/Documents/Developer/Swift-CMS/docs/features/preview.md`
+
+**Content**: Content preview system documentation:
+- Token generation (admin panel, API, CLI)
+- Preview link format and usage
+- Token validation process
+- Security considerations
+- Integration examples (website, preview bar)
+- Workflow examples (content review, client approval)
+- API reference for preview endpoints
+- Best practices for secure preview sharing
+- Troubleshooting common issues
+
+**Status**: Complete preview system guide
+
+## Key Features Documented (Wave 3 Updates)
+
+### GraphQL API
+- Auto-generated schema from content types
+- Query and mutation operations
+- Real-time subscriptions
+- Type-safe client SDKs
+- Query complexity analysis
+- Rate limiting
+
+### Admin UI Enhancements
+- Dark mode with system preference detection
+- Persistent theme preferences
+- Cross-tab theme synchronization
+- Touch-optimized interactions
+- Responsive card views on mobile
+- Swipe gestures for quick actions
+
+### Admin UI Overhaul (Beyond Strapi)
+**Plan**: `docs/admin/ADMIN_UI_OVERHAUL_PLAN.md`
+- Snapshot test infrastructure with swift-snapshot-testing
+- Content editor fixes (JSON, media picker, relation fields)
+- Command palette (Cmd+K) with fuzzy search
+- Keyboard shortcuts system
+- Toast notification system
+- Animated dashboard counters and Chart.js integration
+- Tabbed settings page overhaul
+
+### Bulk Operations
+- Multi-entry selection
+- Persistent selection across sessions
+- Bulk publish, unpublish, archive, delete
+- Real-time progress tracking
+- 30-minute undo window
+- Mobile-optimized selection
+
+### Content Preview
+- Secure token-based preview
+- 1-hour token expiration
+- Draft content viewing
+- Preview access logging
+- Token revocation support
+
+### Performance & Observability
+- Redis-powered caching
+- Structured JSON logging
+- OpenTelemetry tracing
+- Prometheus metrics
+- Health check endpoints
+- Error tracking
+
 The documentation is now complete and ready for the v1.0.0 release. All major features are documented with real examples, and developers can:
 
 1. **Get Started**: Follow installation guide to have SwiftCMS running in 5 minutes
