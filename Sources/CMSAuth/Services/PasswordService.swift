@@ -317,7 +317,7 @@ import FoundationNetworking
 /// ### Benchmarking
 /// ```swift
 /// // Benchmark hash performance
-func benchmarkHashing() async {
+/// func benchmarkHashing() async {
 ///     let service = PasswordService()
 ///
 ///     let start = Date()

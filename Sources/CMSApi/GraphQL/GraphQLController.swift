@@ -11,7 +11,7 @@ import CMSEvents
 
 /// 📡 **GraphQL API Controller**
 ///
-## Responsibilities
+/// ## Responsibilities
 /// Provides GraphQL API endpoints with dynamic schema generation based on content types.
 /// Integrates with Pioneer for subscription support and GraphiQL IDE.
 ///
@@ -53,7 +53,7 @@ import CMSEvents
 ///
 /// ```graphql
 /// # Example generated types
-type BlogPost {
+/// type BlogPost {
 ///   id: ID!
 ///   title: String!
 ///   content: String!
@@ -63,7 +63,7 @@ type BlogPost {
 ///   status: String!
 /// }
 ///
-type Query {
+/// type Query {
 ///   blogPost(id: ID!): BlogPost
 ///   blogPostList(
 ///     page: Int = 1
@@ -72,7 +72,7 @@ type Query {
 ///   ): BlogPostConnection!
 /// }
 ///
-type Mutation {
+/// type Mutation {
 ///   createBlogPost(data: JSON!): BlogPost!
 ///   updateBlogPost(id: ID!, data: JSON!): BlogPost!
 ///   deleteBlogPost(id: ID!): Boolean!

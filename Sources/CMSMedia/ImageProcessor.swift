@@ -439,7 +439,7 @@ public struct ImageProcessor: Sendable {
         }
 
         let outputSize = imageData.count
-        print("💾 Exported \(outputSize) bytes (${String(format: "%.1f", Double(outputSize) / 1024.0)} KB)")
+        print("💾 Exported \(outputSize) bytes (\(String(format: "%.1f", Double(outputSize) / 1024.0)) KB)")
 
         // Convert to ByteBuffer for storage pipeline
         var buffer = ByteBufferAllocator().buffer(capacity: outputSize)

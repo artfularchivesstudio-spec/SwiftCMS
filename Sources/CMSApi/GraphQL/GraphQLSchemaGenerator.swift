@@ -9,7 +9,7 @@ import Graphiti
 
 /// 🧬 **GraphQL Schema Generator**
 ///
-## Responsibilities
+/// ## Responsibilities
 /// Dynamically generates GraphQL schemas from content type definitions at runtime.
 /// Implements caching and schema regeneration on content type changes.
 ///

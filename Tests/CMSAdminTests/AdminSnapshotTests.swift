@@ -23,6 +23,8 @@ final class AdminSnapshotTests: LeafSnapshotTestCase {
         let typeCount: Int
         let entryCount: Int
         let recentEntries: [MockEntry]
+        let auditLogs: [MockAuditLog]
+        let dlqCount: Int
         let activePage: String
         let contentTypes: [SidebarContentType]
         let greeting: String
@@ -42,6 +44,13 @@ final class AdminSnapshotTests: LeafSnapshotTestCase {
         let status: String
         let createdAt: String
         let data: [String: String]
+    }
+
+    struct MockAuditLog: Encodable {
+        let action: String
+        let contentType: String
+        let userId: String?
+        let createdAt: String
     }
 
     /// 📸 **Test Login Page (Default State)**
@@ -107,7 +116,12 @@ final class AdminSnapshotTests: LeafSnapshotTestCase {
             title: "Dashboard",
             typeCount: 5,
             entryCount: 42,
-            recentEntries: [], // Empty for now to simplify
+            recentEntries: [],
+            auditLogs: [
+                MockAuditLog(action: "create", contentType: "post", userId: "user-1", createdAt: "2023-10-27"),
+                MockAuditLog(action: "update", contentType: "page", userId: "user-2", createdAt: "2023-10-26")
+            ],
+            dlqCount: 1, // Simulate 1 failed job to trigger warning state
             activePage: "dashboard",
             contentTypes: [
                 SidebarContentType(slug: "post", displayName: "Post"),
@@ -143,6 +157,11 @@ final class AdminSnapshotTests: LeafSnapshotTestCase {
             typeCount: 5,
             entryCount: 42,
             recentEntries: [],
+            auditLogs: [
+                MockAuditLog(action: "create", contentType: "post", userId: "user-1", createdAt: "2023-10-27"),
+                MockAuditLog(action: "delete", contentType: "comment", userId: "admin", createdAt: "2023-10-26")
+            ],
+            dlqCount: 0, // Healthy state
             activePage: "dashboard",
             contentTypes: [
                 SidebarContentType(slug: "post", displayName: "Post"),

@@ -467,31 +467,7 @@ public struct DynamicContentController: RouteCollection, Sendable {
         return res
     }
 
-    /// POST /api/v1/:contentType
-    @Sendable
-    func create(req: Request) async throws -> Response {
-        let contentType = try req.parameters.require("contentType")
-        let dto = try req.content.decode(CreateContentEntryDTO.self)
 
-        let user = req.auth.get(CmsUser.self)
-        let context = CmsContext(
-            logger: req.logger,
-            userId: user?.userId,
-            tenantId: user?.tenantId
-        )
-
-        let response = try await ContentEntryService.create(
-            contentType: contentType,
-            dto: dto,
-            on: req.db,
-            eventBus: req.eventBus,
-            context: context
-        )
-
-        let res = Response(status: .created)
-        try res.content.encode(response)
-        return res
-    }
 
     // MARK: - 👁 Read Operations
 
@@ -558,7 +534,7 @@ public struct DynamicContentController: RouteCollection, Sendable {
             req.logger.debug("Populating relations", metadata: ["fields": populateParam])
             let fields = populateParam.split(separator: ",").map(String.init)
             if let typeDef = try await ContentTypeDefinition.query(on: req.db)
-                .filter(\. $slug == contentType)
+                .filter(\.$slug == contentType)
                 .first() {
                 req.logger.info("🔄 Resolving relations", metadata: ["fieldCount": "\(fields.count)"])
                 let resolvedData = try await RelationResolver.resolve(
@@ -595,52 +571,7 @@ public struct DynamicContentController: RouteCollection, Sendable {
         return response
     }
 
-    /// GET /api/v1/:contentType/:entryId
-    @Sendable
-    func read(req: Request) async throws -> ContentEntryResponseDTO {
-        let contentType = try req.parameters.require("contentType")
-        guard let entryId = req.parameters.get("entryId", as: UUID.self) else {
-            throw ApiError.badRequest("Invalid entry ID")
-        }
 
-        var response = try await ContentEntryService.get(
-            contentType: contentType,
-            id: entryId,
-            on: req.db
-        )
-
-        // Handle ?populate= for relations
-        if let populateParam = req.query[String.self, at: "populate"] {
-            let fields = populateParam.split(separator: ",").map(String.init)
-            if let typeDef = try await ContentTypeDefinition.query(on: req.db)
-                .filter(\.$slug == contentType)
-                .first() {
-                let resolvedData = try await RelationResolver.resolve(
-                    data: response.data,
-                    schema: typeDef.jsonSchema,
-                    on: req.db,
-                    populateFields: fields
-                )
-                response = ContentEntryResponseDTO(
-                    id: response.id,
-                    contentType: response.contentType,
-                    data: resolvedData,
-                    status: response.status,
-                    locale: response.locale,
-                    publishAt: response.publishAt,
-                    unpublishAt: response.unpublishAt,
-                    createdBy: response.createdBy,
-                    updatedBy: response.updatedBy,
-                    tenantId: response.tenantId,
-                    createdAt: response.createdAt,
-                    updatedAt: response.updatedAt,
-                    publishedAt: response.publishedAt
-                )
-            }
-        }
-
-        return response
-    }
 
     // MARK: - ✏️ Update Operations
 
@@ -1001,44 +932,7 @@ public struct DynamicContentController: RouteCollection, Sendable {
         }
     }
 
-    // MARK: - Version Endpoints
 
-    /// GET /api/v1/:contentType/:entryId/versions
-    @Sendable
-    func listVersions(req: Request) async throws -> [ContentVersionResponseDTO] {
-        guard let entryId = req.parameters.get("entryId", as: UUID.self) else {
-            throw ApiError.badRequest("Invalid entry ID")
-        }
-        return try await VersionService.listVersions(entryId: entryId, on: req.db)
-    }
-
-    /// GET /api/v1/:contentType/:entryId/versions/:version
-    @Sendable
-    func getVersion(req: Request) async throws -> ContentVersionResponseDTO {
-        guard let entryId = req.parameters.get("entryId", as: UUID.self) else {
-            throw ApiError.badRequest("Invalid entry ID")
-        }
-        guard let version = req.parameters.get("version", as: Int.self) else {
-            throw ApiError.badRequest("Invalid version number")
-        }
-        return try await VersionService.getVersion(entryId: entryId, version: version, on: req.db)
-    }
-
-    /// POST /api/v1/:contentType/:entryId/versions/:version/restore
-    @Sendable
-    func restoreVersion(req: Request) async throws -> ContentEntryResponseDTO {
-        guard let entryId = req.parameters.get("entryId", as: UUID.self) else {
-            throw ApiError.badRequest("Invalid entry ID")
-        }
-        guard let version = req.parameters.get("version", as: Int.self) else {
-            throw ApiError.badRequest("Invalid version number")
-        }
-        let user = req.auth.get(CmsUser.self)
-        return try await VersionService.restore(
-            entryId: entryId, version: version,
-            on: req.db, userId: user?.userId
-        )
-    }
 }
 
 // MARK: - ContentTypeController
@@ -1123,6 +1017,8 @@ public struct SearchController: RouteCollection, Sendable {
         routes.get("search", use: search)
     }
 
+
+
     @Sendable
     func search(req: Request) async throws -> PaginationWrapper<ContentEntryResponseDTO> {
         guard let query = req.query[String.self, at: "q"], !query.isEmpty else {
@@ -1151,5 +1047,41 @@ public struct SearchController: RouteCollection, Sendable {
 
         let dtos = entries.map { $0.toResponseDTO() }
         return .paginate(items: dtos, page: page, perPage: perPage, total: total)
+    }
+}
+
+// MARK: - Helpers
+
+protocol Tappable {}
+extension Tappable {
+    @discardableResult
+    func tap(_ block: (Self) -> Void) -> Self {
+        block(self)
+        return self
+    }
+}
+extension ContentEntryResponseDTO: Tappable {}
+extension Array: Tappable {}
+extension ContentVersionResponseDTO: Tappable {}
+
+extension Logger {
+    func info(_ message: Message, metadata: [String: String]) {
+        let converted = metadata.mapValues { Logger.MetadataValue.string($0) }
+        self.info(message, metadata: converted)
+    }
+    
+    func debug(_ message: Message, metadata: [String: String]) {
+        let converted = metadata.mapValues { Logger.MetadataValue.string($0) }
+        self.debug(message, metadata: converted)
+    }
+    
+    func warning(_ message: Message, metadata: [String: String]) {
+        let converted = metadata.mapValues { Logger.MetadataValue.string($0) }
+        self.warning(message, metadata: converted)
+    }
+    
+    func error(_ message: Message, metadata: [String: String]) {
+        let converted = metadata.mapValues { Logger.MetadataValue.string($0) }
+        self.error(message, metadata: converted)
     }
 }
