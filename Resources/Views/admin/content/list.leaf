@@ -1,39 +1,486 @@
 #extend("admin/base"):
+#import("admin/partials/responsive-table")
 #export("content"):
-<div class="flex justify-between items-center mb-6">
-    <h3 class="text-lg font-semibold">#(contentType.displayName)</h3>
-    <a href="/admin/content/#(contentType.slug)/new" class="btn btn-primary btn-sm">+ New Entry</a>
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+    <div>
+        <h3 class="text-xl font-semibold">#(contentType.displayName)</h3>
+        <p class="text-sm text-base-content/60 hidden sm:block">#(contentType.description)</p>
+    </div>
+    <a href="/admin/content/#(contentType.slug)/new" class="btn btn-primary btn-sm w-full sm:w-auto min-h-[44px]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+        </svg>
+        New Entry
+    </a>
 </div>
 
-<div class="mb-4 flex gap-2 items-center">
-    <input type="text" id="filter-search" class="input input-bordered input-sm" placeholder="Search entries..." hx-get="/admin/search" hx-trigger="keyup changed delay:500ms" hx-target="#search-results">
-
-    <div class="dropdown dropdown-end">
-        <label tabindex="0" class="btn btn-sm btn-ghost m-1">Saved Filters</label>
-        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52" id="saved-filters-list" hx-get="/saved-filters?contentType=#(contentType.slug)" hx-trigger="load">
-            <li><a class="loading">Loading...</a></li>
-        </ul>
+<!-- Mobile-friendly search and filters -->
+<div class="space-y-3 mb-6">
+    <div class="flex flex-col sm:flex-row gap-2">
+        <div class="relative flex-1">
+            <input type="search" id="filter-search" class="input input-bordered input-sm w-full pl-10 min-h-[44px]" placeholder="Search entries..." hx-get="/admin/search" hx-trigger="keyup changed delay:500ms" hx-target="#search-results">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </div>
+        <button class="btn btn-sm btn-ghost sm:hidden min-h-[44px]" onclick="toggleMobileFilters()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Filters
+        </button>
     </div>
 
-    <button class="btn btn-sm btn-ghost" onclick="document.getElementById('save-filter-modal').showModal()">
-        Save Filter
-    </button>
+    <!-- Mobile filter panel (collapsible) -->
+    <div id="mobile-filters" class="hidden sm:flex gap-2 flex-wrap">
+        <div class="dropdown dropdown-end">
+            <label tabindex="0" class="btn btn-sm btn-ghost min-h-[44px]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                Saved Filters
+            </label>
+            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 max-h-96 overflow-auto" id="saved-filters-list" hx-get="/saved-filters?contentType=#(contentType.slug)" hx-trigger="load">
+                <li><a class="loading">Loading...</a></li>
+            </ul>
+        </div>
+
+        <button class="btn btn-sm btn-ghost min-h-[44px]" onclick="openSaveFilterModal()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+            </svg>
+            Save Filter
+        </button>
+
+        <!-- Status filter -->
+        <select class="select select-bordered select-sm min-h-[44px]" onchange="applyFilter('status', this.value)">
+            <option value="">All Status</option>
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+            <option value="archived">Archived</option>
+        </select>
+    </div>
+</div>
+
+<!-- Search Results -->
+<div id="search-results" class="mb-6"></div>
+
+<!-- Bulk Operations Bar -->
+<div class="mb-4" x-data="bulkOperations()" x-show="selectedCount > 0" x-transition style="display: none;">
+    <div class="bg-primary/10 border border-primary/20 rounded-lg p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-sm font-medium">
+                <span x-text="selectedCount"></span> selected
+            </span>
+            <button @click="clearSelection()" class="btn btn-ghost btn-xs min-h-[32px]">Clear</button>
+        </div>
+        <div class="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+            <button @click="performBulkAction('publish')" class="btn btn-sm btn-success flex-1 sm:flex-none min-h-[44px]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Publish
+            </button>
+            <button @click="performBulkAction('unpublish')" class="btn btn-sm btn-warning flex-1 sm:flex-none min-h-[44px]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Unpublish
+            </button>
+            <div class="dropdown dropdown-end">
+                <label tabindex="0" class="btn btn-sm btn-ghost min-h-[44px]">
+                    More
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </label>
+                <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52">
+                    <li>
+                        <a @click="showLocaleModal()" class="flex items-center gap-2 min-h-[44px]">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                            </svg>
+                            Change Locale
+                        </a>
+                    </li>
+                    <li>
+                        <a @click="performBulkAction('archive')" class="flex items-center gap-2 min-h-[44px]">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                            </svg>
+                            Archive
+                        </a>
+                    </li>
+                    <div class="divider my-0"></div>
+                    <li>
+                        <a @click="confirmDelete()" class="flex items-center gap-2 text-error min-h-[44px]">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Delete
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Progress Indicator -->
+<div class="mb-4" x-data="bulkProgress()" x-show="isActive" x-transition style="display: none;">
+    <div class="bg-base-100 border border-base-300 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium" x-text="statusText"></span>
+            <button @click="isActive = false" class="btn btn-ghost btn-xs min-h-[32px]">Dismiss</button>
+        </div>
+        <progress class="progress progress-primary w-full" :value="progress" max="100"></progress>
+        <div class="flex justify-between mt-2 text-xs text-base-content/60">
+            <span x-text="completed + ' of ' + total + ' completed'"></span>
+            <span x-show="failed > 0" class="text-error" x-text="failed + ' failed'"></span>
+        </div>
+    </div>
+</div>
+
+<!-- Undo Notification -->
+<div class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-auto z-50" x-data="undoNotification()" x-show="show" x-transition style="display: none;">
+    <div class="bg-success/10 border border-success/20 rounded-lg p-4 shadow-lg flex flex-col sm:flex-row items-start sm:items-center gap-3 max-w-md">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-success flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div class="flex-1">
+            <p class="font-medium text-sm" x-text="message"></p>
+            <p class="text-xs text-base-content/60" x-text="details"></p>
+        </div>
+        <div class="flex gap-2 w-full sm:w-auto">
+            <button @click="undo()" class="btn btn-sm btn-ghost flex-1 sm:flex-none min-h-[44px]">Undo</button>
+            <button @click="dismiss()" class="btn btn-sm btn-ghost flex-1 sm:flex-none min-h-[44px]">Dismiss</button>
+        </div>
+    </div>
+</div>
+
+<!-- Locale Change Modal -->
+<dialog id="locale-modal" class="modal">
+    <form method="dialog" class="modal-box max-w-md">
+        <h3 class="font-bold text-lg">Change Locale</h3>
+        <p class="py-2 text-sm text-base-content/60">Select the new locale for the selected entries.</p>
+        <div class="form-control py-4">
+            <label class="label"><span class="label-text">Locale</span></label>
+            <select id="bulk-locale-select" class="select select-bordered w-full">
+                <option value="en-US">English (US)</option>
+                <option value="en-GB">English (UK)</option>
+                <option value="fr-FR">French</option>
+                <option value="de-DE">German</option>
+                <option value="es-ES">Spanish</option>
+                <option value="it-IT">Italian</option>
+                <option value="pt-BR">Portuguese (Brazil)</option>
+                <option value="zh-CN">Chinese (Simplified)</option>
+                <option value="ja-JP">Japanese</option>
+                <option value="ko-KR">Korean</option>
+            </select>
+        </div>
+        <div class="modal-action">
+            <button class="btn btn-ghost min-h-[44px]">Cancel</button>
+            <button type="button" @click="applyLocaleChange()" class="btn btn-primary min-h-[44px]">Apply</button>
+        </div>
+    </form>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Delete Confirmation Modal -->
+<dialog id="delete-confirm-modal" class="modal">
+    <form method="dialog" class="modal-box max-w-md">
+        <h3 class="font-bold text-lg text-error">Confirm Delete</h3>
+        <p class="py-4">Are you sure you want to delete <span x-text="selectedCount"></span> entries? This action can be undone within 30 minutes.</p>
+        <div class="modal-action">
+            <button class="btn btn-ghost min-h-[44px]">Cancel</button>
+            <button type="button" @click="performBulkAction('delete')" class="btn btn-error min-h-[44px]">Delete</button>
+        </div>
+    </form>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Content Entries - Responsive Table -->
+<div class="responsive-table-wrapper"
+     x-data="bulkSelection()"
+     x-init="initSelection()">
+    <!-- Mobile Card View -->
+    <div class="mobile-cards md:hidden space-y-3">
+        <!-- Mobile Selection Bar -->
+        <div class="flex items-center gap-2 p-2 bg-base-200 rounded-lg" x-show="selectedCount > 0" x-transition style="display: none;">
+            <label class="cursor-pointer">
+                <input type="checkbox" class="checkbox checkbox-sm"
+                       @change="toggleAll($el.checked)"
+                       :checked="isAllSelected">
+            </label>
+            <span class="text-sm" x-text="selectedCount + ' selected'"></span>
+            <button @click="clearSelection()" class="btn btn-ghost btn-xs ml-auto">Clear</button>
+        </div>
+
+        #for(entry in entries):
+        <div class="card bg-base-100 shadow-sm mobile-card transition-all duration-200"
+             :class="{ 'bg-primary/5': isRowSelected('#(entry.id)') }"
+             data-entry-id="#(entry.id)"
+             @touchstart.passive="handleCardTouchStart($event)"
+             @touchmove.passive="handleCardTouchMove($event)"
+             @touchend="handleCardTouchEnd($event, '#(entry.id)')">
+            <div class="card-body p-4">
+                <!-- Card Header with Checkbox -->
+                <div class="flex justify-between items-start mb-3 gap-2">
+                    <label class="cursor-pointer flex items-start gap-2 flex-1">
+                        <input type="checkbox" class="checkbox checkbox-sm mt-1 flex-shrink-0"
+                               value="#(entry.id)"
+                               @change="toggleRow('#(entry.id)', $el.checked)"
+                               :checked="isRowSelected('#(entry.id)')"
+                               @click.stop>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-base truncate">#(entry.title ?? 'Untitled')</h4>
+                            <p class="text-xs text-base-content/60 font-mono mt-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                                </svg>
+                                #(entry.id.toString().prefix(8))...
+                            </p>
+                        </div>
+                    </label>
+                    <span class="badge badge-sm whitespace-nowrap flex-shrink-0
+                        #if(entry.status == 'published'):badge-success
+                        #elseif(entry.status == 'draft'):badge-warning
+                        #elseif(entry.status == 'archived'):badge-neutral
+                        #endif">
+                        #(entry.status ?? 'draft')
+                    </span>
+                </div>
+
+                <!-- Card Content -->
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center min-h-[44px] py-2 border-b border-base-200">
+                        <span class="text-base-content/60 w-24 flex-shrink-0">Created</span>
+                        <span class="flex-1 text-right truncate pl-2">#(entry.createdAt.format(date: .long, time: .short))</span>
+                    </div>
+                    <div class="flex justify-between items-center min-h-[44px] py-2 border-b border-base-200">
+                        <span class="text-base-content/60 w-24 flex-shrink-0">Updated</span>
+                        <span class="flex-1 text-right truncate pl-2">#(entry.updatedAt.format(date: .long, time: .short))</span>
+                    </div>
+                    #if(entry.publishedAt):
+                    <div class="flex justify-between items-center min-h-[44px] py-2">
+                        <span class="text-base-content/60 w-24 flex-shrink-0">Published</span>
+                        <span class="flex-1 text-right truncate pl-2">#(entry.publishedAt.format(date: .long, time: .short))</span>
+                    </div>
+                    #endif
+                </div>
+
+                <!-- Card Actions -->
+                <div class="card-actions mt-3 pt-3 border-t border-base-300">
+                    <a href="/admin/content/#(contentType.slug)/#(entry.id)" class="btn btn-sm btn-ghost flex-1 min-h-[44px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                        Edit
+                    </a>
+                    <button class="btn btn-sm btn-ghost flex-1 min-h-[44px]" onclick="shareEntry('#(entry.id)', '#(entry.title ?? 'Untitled')')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                        </svg>
+                        Share
+                    </button>
+                    <form method="POST" action="/admin/content/#(contentType.slug)/#(entry.id)/delete" onsubmit="return confirm('Delete this entry?')" class="flex-1">
+                        <button type="submit" class="btn btn-sm btn-error btn-ghost w-full min-h-[44px]">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                            Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        #endfor
+
+        #if(count(entries) == 0):
+        <div class="text-center py-12 text-base-content/50">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p class="text-lg font-medium">No entries yet</p>
+            <p class="text-sm">Create your first entry to get started</p>
+            <a href="/admin/content/#(contentType.slug)/new" class="btn btn-primary btn-sm mt-4 min-h-[44px]">
+                Create Entry
+            </a>
+        </div>
+        #endif
+    </div>
+
+    <!-- Desktop Table View -->
+    <div class="hidden md:block">
+        <div class="overflow-x-auto rounded-box shadow-sm">
+            <table class="table table-zebra">
+                <thead class="sticky top-0 bg-base-100 z-10">
+                    <tr>
+                        <th>
+                            <label class="cursor-pointer">
+                                <input type="checkbox" class="checkbox checkbox-sm"
+                                       @change="toggleAll($el.checked)"
+                                       :checked="isAllSelected">
+                            </label>
+                        </th>
+                        <th class="hidden lg:table-cell">
+                            <span class="text-xs">ID</span>
+                        </th>
+                        <th>
+                            <button class="btn btn-ghost btn-xs" onclick="toggleSort('title')">
+                                Title
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </button>
+                        </th>
+                        <th>
+                            <button class="btn btn-ghost btn-xs" onclick="toggleSort('status')">
+                                Status
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </button>
+                        </th>
+                        <th class="hidden sm:table-cell">
+                            <button class="btn btn-ghost btn-xs" onclick="toggleSort('createdAt')">
+                                Created
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </button>
+                        </th>
+                        <th class="hidden md:table-cell">
+                            <button class="btn btn-ghost btn-xs" onclick="toggleSort('updatedAt')">
+                                Updated
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </button>
+                        </th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    #for(entry in entries):
+                    <tr class="hover" :class="{ 'bg-primary/5': isRowSelected('#(entry.id)') }">
+                        <td>
+                            <label class="cursor-pointer" @click.stop>
+                                <input type="checkbox" class="checkbox checkbox-sm"
+                                       value="#(entry.id)"
+                                       @change="toggleRow('#(entry.id)', $el.checked)"
+                                       :checked="isRowSelected('#(entry.id)')">
+                            </label>
+                        </td>
+                        <td class="hidden lg:table-cell font-mono text-xs text-base-content/60">
+                            #(entry.id.toString().prefix(8))
+                        </td>
+                        <td>
+                            <a href="/admin/content/#(contentType.slug)/#(entry.id)" class="font-medium truncate max-w-xs block hover:underline">#(entry.title ?? 'Untitled')</a>
+                        </td>
+                        <td>
+                            <span class="badge badge-sm
+                                #if(entry.status == 'published'):badge-success
+                                #elseif(entry.status == 'draft'):badge-warning
+                                #elseif(entry.status == 'archived'):badge-neutral
+                                #endif">
+                                #(entry.status ?? 'draft')
+                            </span>
+                        </td>
+                        <td class="hidden sm:table-cell text-sm text-base-content/60">
+                            #(entry.createdAt.format(date: .abbreviated, time: .short))
+                        </td>
+                        <td class="hidden md:table-cell text-sm text-base-content/60">
+                            #(entry.updatedAt.format(date: .abbreviated, time: .short))
+                        </td>
+                        <td class="text-right" onclick="event.stopPropagation()">
+                            <div class="flex gap-1 justify-end">
+                                <a href="/admin/content/#(contentType.slug)/#(entry.id)" class="btn btn-ghost btn-xs" title="Edit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                    </svg>
+                                </a>
+                                <button class="btn btn-ghost btn-xs" onclick="shareEntry('#(entry.id)', '#(entry.title ?? 'Untitled')')" title="Share">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
+                                    </svg>
+                                </button>
+                                <form method="POST" action="/admin/content/#(contentType.slug)/#(entry.id)/delete" onsubmit="return confirm('Delete this entry?')" class="inline">
+                                    <button type="submit" class="btn btn-error btn-ghost btn-xs" title="Delete">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    #endfor
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Responsive Pagination -->
+    <div class="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+        <div class="text-sm text-base-content/60 text-center sm:text-left">
+            Showing <span class="font-medium">#((page - 1) * pageSize + 1)</span> to <span class="font-medium">#(min(page * pageSize, totalItems))</span> of <span class="font-medium">#(totalItems)</span> entries
+        </div>
+        <div class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+            #if(page > 1):
+            <a href="?page=#(page - 1)" class="btn btn-sm min-h-[44px] px-4 flex-1 sm:flex-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span class="hidden sm:inline">Previous</span>
+            </a>
+            #endif
+
+            <!-- Page numbers for mobile (simplified) -->
+            <div class="hidden sm:flex gap-1">
+                #for(p in 1...totalPages):
+                    #if(p == page || p == 1 || p == totalPages || (p >= page - 1 && p <= page + 1)):
+                        <a href="?page=#(p)" class="btn btn-sm #if(p == page):btn-active #else:btn-ghost #endif min-h-[44px] w-10">#(p)</a>
+                    #elseif(p == page - 2 || p == page + 2):
+                        <span class="btn btn-sm btn-disabled min-h-[44px]">...</span>
+                    #endif
+                #endfor
+            </div>
+
+            <span class="btn btn-sm btn-disabled min-h-[44px] flex-1 sm:flex-none sm:hidden">
+                Page #(page) / #(totalPages)
+            </span>
+
+            #if(page < totalPages):
+            <a href="?page=#(page + 1)" class="btn btn-sm min-h-[44px] px-4 flex-1 sm:flex-none">
+                <span class="hidden sm:inline">Next</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </a>
+            #endif
+        </div>
+    </div>
 </div>
 
 <!-- Save Filter Modal -->
 <dialog id="save-filter-modal" class="modal">
     <form method="POST" action="/saved-filters" class="modal-box">
-        <h3 class="font-bold text-lg">Save Filter</h3>
+        <h3 class="font-bold text-lg">Save Current Filter</h3>
         <div class="form-control">
             <label class="label"><span class="label-text">Filter Name</span></label>
-            <input type="text" name="name" class="input input-bordered" required>
+            <input type="text" name="name" class="input input-bordered" required placeholder="My Custom Filter">
         </div>
         <div class="form-control">
             <label class="label"><span class="label-text">Include sorting</span></label>
             <input type="checkbox" name="includeSort" class="checkbox">
         </div>
         <div class="form-control">
-            <label class="label"><span class="label-text">Make public</span></label>
+            <label class="label"><span class="label-text">Make public (visible to all users)</span></label>
             <input type="checkbox" name="isPublic" class="checkbox">
         </div>
         <input type="hidden" name="contentType" value="#(contentType.slug)">
@@ -41,60 +488,515 @@
         <input type="hidden" name="sortJSON" id="sort-json">
         <div class="modal-action">
             <button type="button" class="btn btn-ghost" onclick="document.getElementById('save-filter-modal').close()">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="submit" class="btn btn-primary">Save Filter</button>
         </div>
     </form>
 </dialog>
 
-<div class="bg-base-100 rounded-box shadow-sm p-6">
-    <table class="table">
-        <thead><tr><th>ID</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
-        <tbody>
-            #for(entry in entries):
-            <tr>
-                <td class="font-mono text-xs">#(entry.id)</td>
-                <td><span class="badge badge-sm">#(entry.status)</span></td>
-                <td>#(entry.createdAt)</td>
-                <td><a href="/admin/content/#(contentType.slug)/#(entry.id)" class="btn btn-ghost btn-xs">Edit</a></td>
-            </tr>
-            #endfor
-        </tbody>
-    </table>
-    <div class="flex justify-center mt-4 gap-2">
-        #if(page > 1):<a href="?page=#(page - 1)" class="btn btn-sm">Previous</a>#endif
-        <span class="btn btn-sm btn-disabled">Page #(page) of #(totalPages)</span>
-        #if(page < totalPages):<a href="?page=#(page + 1)" class="btn btn-sm">Next</a>#endif
-    </div>
-</div>
-
 <script>
-function saveCurrentFilter() {
-    // Get current URL parameters as filter
+// Bulk Selection Management
+function bulkSelection() {
+    const STORAGE_KEY = 'bulkSelection_#(contentType.slug)';
+
+    return {
+        selectedEntries: new Set(),
+        isAllSelected: false,
+
+        initSelection() {
+            // Restore selection from localStorage
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    this.selectedEntries = new Set(JSON.parse(saved));
+                    this.updateSelectAllState();
+                }
+            } catch (e) {
+                console.error('Failed to restore selection:', e);
+            }
+        },
+
+        get selectedCount() {
+            return this.selectedEntries.size;
+        },
+
+        isRowSelected(id) {
+            return this.selectedEntries.has(id);
+        },
+
+        toggleRow(id, checked) {
+            if (checked) {
+                this.selectedEntries.add(id);
+            } else {
+                this.selectedEntries.delete(id);
+            }
+            this.saveSelection();
+            this.updateSelectAllState();
+        },
+
+        toggleAll(checked) {
+            const checkboxes = document.querySelectorAll('tbody input[type="checkbox"], .mobile-cards input[type="checkbox"]');
+            this.isAllSelected = checked;
+
+            if (checked) {
+                checkboxes.forEach(cb => {
+                    this.selectedEntries.add(cb.value);
+                    cb.checked = true;
+                });
+            } else {
+                this.selectedEntries.clear();
+                checkboxes.forEach(cb => cb.checked = false);
+            }
+            this.saveSelection();
+        },
+
+        clearSelection() {
+            this.selectedEntries.clear();
+            this.isAllSelected = false;
+            this.saveSelection();
+            this.updateCheckboxes();
+        },
+
+        saveSelection() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify([...this.selectedEntries]));
+            } catch (e) {
+                console.error('Failed to save selection:', e);
+            }
+        },
+
+        updateCheckboxes() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][value]');
+            checkboxes.forEach(cb => {
+                cb.checked = this.selectedEntries.has(cb.value);
+            });
+        },
+
+        updateSelectAllState() {
+            const checkboxes = document.querySelectorAll('tbody input[type="checkbox"], .mobile-cards input[type="checkbox"]');
+            if (checkboxes.length === 0) {
+                this.isAllSelected = false;
+                return;
+            }
+            this.isAllSelected = [...this.selectedEntries].size === checkboxes.length;
+        },
+
+        getSelectedIds() {
+            return [...this.selectedEntries];
+        }
+    };
+}
+
+// Bulk Operations
+function bulkOperations() {
+    return {
+        selectedEntries: new Set(),
+
+        get selectedCount() {
+            // Get from bulkSelection component
+            const bulkSel = document.querySelector('[x-data*="bulkSelection"]')?._x_dataStack[0];
+            return bulkSel?.selectedCount || 0;
+        },
+
+        async performBulkAction(action) {
+            const bulkSel = document.querySelector('[x-data*="bulkSelection"]')?._x_dataStack[0];
+            const entryIds = bulkSel?.getSelectedIds() || [];
+
+            if (entryIds.length === 0) {
+                alert('Please select at least one entry');
+                return;
+            }
+
+            const payload = {
+                entryIds: entryIds,
+                action: action
+            };
+
+            // Show progress
+            const progress = document.querySelector('[x-data*="bulkProgress"]')?._x_dataStack[0];
+            if (progress) {
+                progress.start(entryIds.length);
+            }
+
+            try {
+                const response = await fetch(`/admin/content/#(contentType.slug)/bulk`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (progress) {
+                    progress.update(result.successCount, result.failureCount);
+                }
+
+                if (result.successCount > 0) {
+                    // Clear selection
+                    if (bulkSel) {
+                        bulkSel.clearSelection();
+                    }
+
+                    // Show undo notification if applicable
+                    if (result.canUndo && result.undoToken) {
+                        const notification = document.querySelector('[x-data*="undoNotification"]')?._x_dataStack[0];
+                        if (notification) {
+                            notification.showNotification(result);
+                        }
+                    }
+
+                    // Reload page after short delay
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    alert('Operation failed: ' + (result.failures[0]?.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Bulk operation failed:', error);
+                alert('Operation failed. Please try again.');
+                if (progress) {
+                    progress.isActive = false;
+                }
+            }
+        },
+
+        showLocaleModal() {
+            document.getElementById('locale-modal').showModal();
+        },
+
+        async applyLocaleChange() {
+            const locale = document.getElementById('bulk-locale-select').value;
+            const bulkSel = document.querySelector('[x-data*="bulkSelection"]')?._x_dataStack[0];
+            const entryIds = bulkSel?.getSelectedIds() || [];
+
+            if (entryIds.length === 0) return;
+
+            const payload = {
+                entryIds: entryIds,
+                action: 'changeLocale',
+                locale: locale
+            };
+
+            try {
+                const response = await fetch(`/admin/content/#(contentType.slug)/bulk`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                document.getElementById('locale-modal').close();
+
+                if (result.successCount > 0) {
+                    if (bulkSel) {
+                        bulkSel.clearSelection();
+                    }
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    alert('Locale change failed: ' + (result.failures[0]?.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Locale change failed:', error);
+                alert('Operation failed. Please try again.');
+            }
+        },
+
+        confirmDelete() {
+            document.getElementById('delete-confirm-modal').showModal();
+        }
+    };
+}
+
+// Bulk Progress
+function bulkProgress() {
+    return {
+        isActive: false,
+        progress: 0,
+        total: 0,
+        completed: 0,
+        failed: 0,
+        statusText: 'Processing...',
+
+        start(total) {
+            this.isActive = true;
+            this.total = total;
+            this.completed = 0;
+            this.failed = 0;
+            this.progress = 0;
+            this.statusText = 'Processing...';
+        },
+
+        update(completed, failed) {
+            this.completed = completed;
+            this.failed = failed;
+            this.progress = Math.round(((completed + failed) / this.total) * 100);
+            this.statusText = completed + failed < this.total ? 'Processing...' : 'Completed';
+        }
+    };
+}
+
+// Undo Notification
+function undoNotification() {
+    return {
+        show: false,
+        message: '',
+        details: '',
+        undoToken: null,
+
+        showNotification(result) {
+            const messages = {
+                'publish': 'Entries published successfully',
+                'unpublish': 'Entries unpublished successfully',
+                'delete': 'Entries deleted successfully'
+            };
+
+            this.message = messages[result.action] || 'Operation completed';
+            this.details = `${result.successCount} entries affected`;
+            this.undoToken = result.undoToken;
+            this.show = true;
+
+            // Auto-hide after 30 seconds
+            setTimeout(() => this.dismiss(), 30000);
+        },
+
+        async undo() {
+            if (!this.undoToken) return;
+
+            try {
+                const response = await fetch('/admin/bulk/undo', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ undoToken: this.undoToken })
+                });
+
+                const result = await response.json();
+                this.dismiss();
+
+                if (result.successCount > 0) {
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    alert('Undo failed: ' + (result.failures[0]?.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Undo failed:', error);
+                alert('Undo failed. Please try again.');
+            }
+        },
+
+        dismiss() {
+            this.show = false;
+            this.undoToken = null;
+        }
+    };
+}
+
+function contentTable() {
+    return {
+        swipeStartX: 0,
+        swipeStartTime: 0,
+        currentCard: null,
+
+        init() {
+            console.log('Content table initialized');
+        },
+
+        handleCardTouchStart(e) {
+            this.swipeStartX = e.touches[0].clientX;
+            this.swipeStartTime = Date.now();
+            this.currentCard = e.target.closest('.mobile-card');
+        },
+
+        handleCardTouchMove(e) {
+            if (!this.currentCard) return;
+
+            const currentX = e.touches[0].clientX;
+            const diff = this.swipeStartX - currentX;
+
+            if (Math.abs(diff) > 10) {
+                const cardBody = this.currentCard.querySelector('.card-body');
+                const transform = Math.max(-100, Math.min(100, -diff));
+                cardBody.style.transform = `translateX(${transform}px)`;
+            }
+        },
+
+        handleCardTouchEnd(e, itemId) {
+            if (!this.currentCard) return;
+
+            const endX = e.changedTouches[0].clientX;
+            const diff = this.swipeStartX - endX;
+
+            const cardBody = this.currentCard.querySelector('.card-body');
+            cardBody.style.transition = 'transform 0.3s ease';
+            cardBody.style.transform = '';
+
+            // Quick actions on swipe
+            if (Math.abs(diff) > 80) {
+                this.showQuickActions(itemId);
+            }
+
+            this.currentCard = null;
+        },
+
+        showQuickActions(itemId) {
+            const card = document.querySelector(`[data-entry-id="${itemId}"]`);
+            const actions = card.querySelector('.card-actions');
+            actions.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            actions.classList.add('ring-2', 'ring-primary');
+            setTimeout(() => actions.classList.remove('ring-2', 'ring-primary'), 1000);
+        },
+
+        refreshTable() {
+            window.location.reload();
+        }
+    };
+}
+
+function toggleMobileFilters() {
+    const filters = document.getElementById('mobile-filters');
+    filters.classList.toggle('hidden');
+}
+
+function openSaveFilterModal() {
+    const modal = document.getElementById('save-filter-modal');
+    const filterInput = document.getElementById('filter-json');
+    const sortInput = document.getElementById('sort-json');
+
+    // Capture current filter state from URL
     const params = new URLSearchParams(window.location.search);
-    const filter = {};
+    const filters = {};
     const sort = {};
 
-    // Extract filter params (example: search, status, etc.)
-    // This would be customized based on actual filter implementation
     params.forEach((value, key) => {
         if (key.startsWith('filter.')) {
-            filter[key.substring(7)] = value;
+            filters[key.substring(7)] = value;
         } else if (key.startsWith('sort.')) {
             sort[key.substring(5)] = value;
         }
     });
 
-    document.getElementById('filter-json').value = JSON.stringify(filter);
-    document.getElementById('sort-json').value = JSON.stringify(sort);
+    filterInput.value = JSON.stringify(filters);
+    sortInput.value = JSON.stringify(sort);
+
+    modal.showModal();
 }
 
-// Bind to save filter button
-document.addEventListener('DOMContentLoaded', () => {
-    const saveBtn = document.querySelector('button[onclick*="save-filter-modal"]');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveCurrentFilter);
+function applyFilter(type, value) {
+    const url = new URL(window.location);
+    if (value) {
+        url.searchParams.set(`filter.${type}`, value);
+    } else {
+        url.searchParams.delete(`filter.${type}`);
     }
+    window.location = url.toString();
+}
+
+function toggleSort(field) {
+    const url = new URL(window.location);
+    const currentSort = url.searchParams.get(`sort.${field}`);
+
+    if (currentSort === 'asc') {
+        url.searchParams.set(`sort.${field}`, 'desc');
+    } else {
+        url.searchParams.set(`sort.${field}`, 'asc');
+    }
+
+    window.location = url.toString();
+}
+
+function shareEntry(id, title) {
+    const url = `${window.location.origin}/admin/content/#(contentType.slug)/${id}`;
+
+    if (navigator.share) {
+        navigator.share({
+            title: title,
+            url: url
+        }).catch(() => {
+            navigator.clipboard.writeText(url);
+            showToast('Link copied to clipboard!');
+        });
+    } else {
+        navigator.clipboard.writeText(url);
+        showToast('Link copied to clipboard!');
+    }
+}
+
+function showToast(message) {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-top toast-center z-50';
+    toast.innerHTML = `
+        <div class="alert alert-success shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span>${message}</span>
+        </div>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    window.initResponsiveTable && window.initResponsiveTable();
 });
 </script>
+
+<style>
+.mobile-card {
+    touch-action: pan-y;
+}
+
+.mobile-card:active {
+    transform: scale(0.99);
+}
+
+/* Pull-to-refresh styles (if needed in future) */
+@media (max-width: 768px) {
+    .table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        backdrop-filter: blur(8px);
+    }
+}
+
+/* Touch-friendly interactions */
+@media (hover: none) {
+    .btn:hover {
+        transform: none;
+    }
+
+    .btn:active {
+        transform: scale(0.95);
+    }
+}
+
+/* Smooth transitions */
+.mobile-card, .btn, a {
+    transition: all 0.2s ease;
+}
+
+/* Better mobile text rendering */
+@media (max-width: 640px) {
+    body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+}
+
+/* Loading state for HTMX */
+.htmx-request .mobile-cards,
+.htmx-request .table-wrapper {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.htmx-request.htmx-indicator {
+    display: inline;
+}
+</style>
 #endexport
 #endextend

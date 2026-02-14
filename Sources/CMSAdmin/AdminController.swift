@@ -59,6 +59,12 @@ public struct AdminController: RouteCollection, Sendable {
 
         // Media upload via admin form
         protected.on(.POST, "media", "upload", body: .collect(maxSize: "50mb"), use: adminMediaUpload)
+
+        // Bulk operations (Wave 3)
+        protected.post("content", ":contentType", "bulk", use: bulkContentOperation)
+        protected.post("media", "bulk", use: bulkMediaOperation)
+        protected.post("bulk", "undo", use: undoBulkOperation)
+        protected.get("bulk", "progress", ":operationId", use: bulkOperationProgress)
     }
 
     // MARK: - Dashboard
@@ -778,6 +784,414 @@ public struct AdminController: RouteCollection, Sendable {
         )
 
         return req.redirect(to: "/admin/media")
+    }
+
+    // MARK: - Bulk Operations (Wave 3)
+
+    /// POST /admin/content/:contentType/bulk
+    /// Performs bulk operations on content entries.
+    @Sendable
+    func bulkContentOperation(req: Request) async throws -> Response {
+        let contentType = try req.parameters.require("contentType")
+        let bulkDTO = try req.content.decode(BulkOperationDTO.self)
+
+        // Verify user has permission for this content type
+        guard let user = req.auth.get(User.self) else {
+            throw Abort(.unauthorized)
+        }
+
+        // Validate content type exists
+        guard let _ = try await ContentTypeDefinition.query(on: req.db)
+            .filter(\.$slug == contentType)
+            .first() else {
+            throw Abort(.notFound, reason: "Content type not found")
+        }
+
+        var successIds: [UUID] = []
+        var failures: [BulkFailure] = []
+        let userId = user.id?.uuidString
+        let context = CmsContext(logger: req.logger, userId: userId)
+
+        // Process each entry
+        for entryId in bulkDTO.entryIds {
+            do {
+                guard let entry = try await ContentEntry.find(entryId, on: req.db),
+                      entry.contentType == contentType,
+                      entry.deletedAt == nil else {
+                    failures.append(BulkFailure(entryId: entryId, error: "Entry not found"))
+                    continue
+                }
+
+                switch bulkDTO.action {
+                case .publish:
+                    entry.status = ContentStatus.published.rawValue
+                    entry.publishedAt = Date()
+                    try await entry.save(on: req.db)
+
+                case .unpublish:
+                    entry.status = ContentStatus.draft.rawValue
+                    try await entry.save(on: req.db)
+
+                case .delete:
+                    entry.deletedAt = Date()
+                    try await entry.save(on: req.db)
+
+                case .changeLocale:
+                    if let newLocale = bulkDTO.locale {
+                        entry.locale = newLocale
+                        try await entry.save(on: req.db)
+                    } else {
+                        failures.append(BulkFailure(entryId: entryId, error: "Locale not specified"))
+                        continue
+                    }
+
+                case .archive:
+                    entry.status = ContentStatus.archived.rawValue
+                    try await entry.save(on: req.db)
+
+                case .restore:
+                    entry.status = ContentStatus.draft.rawValue
+                    entry.deletedAt = nil
+                    try await entry.save(on: req.db)
+                }
+
+                successIds.append(entryId)
+
+                // Publish event for successful operation
+                let event = ContentEvent(
+                    id: UUID(),
+                    name: "content.bulk.\(bulkDTO.action.rawValue)",
+                    entityType: "content",
+                    entityId: entryId.uuidString,
+                    contentType: contentType,
+                    data: ["action": AnyCodableValue.string(bulkDTO.action.rawValue)],
+                    timestamp: Date()
+                )
+                try await req.eventBus.publish(event: event, context: context)
+
+            } catch {
+                req.logger.error("Bulk operation failed for entry \(entryId): \(error)")
+                failures.append(BulkFailure(entryId: entryId, error: error.localizedDescription))
+            }
+        }
+
+        // Generate result
+        let result = BulkOperationResultDTO(
+            successCount: successIds.count,
+            failureCount: failures.count,
+            successIds: successIds,
+            failures: failures,
+            action: bulkDTO.action,
+            canUndo: bulkDTO.action == .publish || bulkDTO.action == .unpublish || bulkDTO.action == .delete,
+            undoToken: bulkDTO.action == .publish || bulkDTO.action == .unpublish || bulkDTO.action == .delete
+                ? generateUndoToken(for: bulkDTO, entryIds: successIds) : nil
+        )
+
+        // Return JSON response for HTMX
+        let res = Response(status: .ok)
+        res.headers.contentType = .json
+        res.body = .init(string: String(data: try JSONEncoder().encode(result), encoding: .utf8) ?? "")
+        return res
+    }
+
+    /// POST /admin/media/bulk
+    /// Performs bulk operations on media files.
+    @Sendable
+    func bulkMediaOperation(req: Request) async throws -> Response {
+        let bulkDTO = try req.content.decode(BulkMediaOperationDTO.self)
+        let storage = req.application.fileStorage
+        let userId = req.auth.get(User.self)?.id?.uuidString
+        let context = CmsContext(logger: req.logger, userId: userId)
+
+        var successIds: [UUID] = []
+        var failures: [BulkFailure] = []
+
+        for fileId in bulkDTO.fileIds {
+            do {
+                guard let file = try await MediaFile.find(fileId, on: req.db) else {
+                    failures.append(BulkFailure(entryId: fileId, error: "File not found"))
+                    continue
+                }
+
+                switch bulkDTO.action {
+                case .delete:
+                    // Delete from storage
+                    try await storage.delete(key: file.storagePath)
+                    // Delete database record
+                    try await file.delete(on: req.db)
+
+                    // Publish delete event
+                    let event = MediaEvent(
+                        id: UUID(),
+                        name: "media.bulk.deleted",
+                        entityType: "media",
+                        entityId: fileId.uuidString,
+                        data: ["filename": AnyCodableValue.string(file.filename)],
+                        timestamp: Date()
+                    )
+                    try await req.eventBus.publish(event: event, context: context)
+
+                case .move:
+                    if let targetPath = bulkDTO.targetPath {
+                        // Update storage path
+                        let newPath = targetPath.isEmpty ? file.filename : "\(targetPath)/\(file.filename)"
+                        // TODO: Implement actual file move in storage provider
+                        file.storagePath = newPath
+                        try await file.save(on: req.db)
+                    } else {
+                        failures.append(BulkFailure(entryId: fileId, error: "Target path not specified"))
+                        continue
+                    }
+                }
+
+                successIds.append(fileId)
+
+            } catch {
+                req.logger.error("Bulk media operation failed for file \(fileId): \(error)")
+                failures.append(BulkFailure(entryId: fileId, error: error.localizedDescription))
+            }
+        }
+
+        let result = BulkMediaResultDTO(
+            successCount: successIds.count,
+            failureCount: failures.count,
+            successIds: successIds,
+            failures: failures,
+            action: bulkDTO.action
+        )
+
+        let res = Response(status: .ok)
+        res.headers.contentType = .json
+        res.body = .init(string: String(data: try JSONEncoder().encode(result), encoding: .utf8) ?? "")
+        return res
+    }
+
+    /// POST /admin/bulk/undo
+    /// Undoes a bulk operation using the undo token.
+    @Sendable
+    func undoBulkOperation(req: Request) async throws -> Response {
+        struct UndoRequest: Content {
+            let undoToken: String
+        }
+
+        let undoReq = try req.content.decode(UndoRequest.self)
+
+        // Decode and validate undo token
+        guard let data = undoReq.undoToken.data(using: .utf8),
+              let decoded = Data(base64Encoded: data),
+              let tokenString = String(data: decoded, encoding: .utf8),
+              let tokenData = tokenString.data(using: .utf8),
+              let token = try? JSONDecoder().decode(UndoToken.self, from: tokenData) else {
+            throw Abort(.badRequest, reason: "Invalid undo token")
+        }
+
+        // Check token expiration (30 minutes)
+        if Date().timeIntervalSince(token.createdAt) > 1800 {
+            throw Abort(.badRequest, reason: "Undo token has expired")
+        }
+
+        var successIds: [UUID] = []
+        var failures: [BulkFailure] = []
+
+        for entryId in token.entryIds {
+            do {
+                guard let entry = try await ContentEntry.find(entryId, on: req.db) else {
+                    failures.append(BulkFailure(entryId: entryId, error: "Entry not found"))
+                    continue
+                }
+
+                // Reverse the original action
+                switch token.action {
+                case .publish:
+                    entry.status = ContentStatus.draft.rawValue
+                    entry.publishedAt = nil
+                    try await entry.save(on: req.db)
+
+                case .unpublish:
+                    entry.status = ContentStatus.published.rawValue
+                    entry.publishedAt = Date()
+                    try await entry.save(on: req.db)
+
+                case .delete:
+                    entry.deletedAt = nil
+                    try await entry.save(on: req.db)
+
+                case .changeLocale, .archive, .restore:
+                    // These actions cannot be undone
+                    failures.append(BulkFailure(entryId: entryId, error: "Action cannot be undone"))
+                    continue
+                }
+
+                successIds.append(entryId)
+
+            } catch {
+                failures.append(BulkFailure(entryId: entryId, error: error.localizedDescription))
+            }
+        }
+
+        let result = BulkOperationResultDTO(
+            successCount: successIds.count,
+            failureCount: failures.count,
+            successIds: successIds,
+            failures: failures,
+            action: token.action,
+            canUndo: false
+        )
+
+        let res = Response(status: .ok)
+        res.headers.contentType = .json
+        res.body = .init(string: String(data: try JSONEncoder().encode(result), encoding: .utf8) ?? "")
+        return res
+    }
+
+    /// GET /admin/bulk/progress/:operationId
+    /// Returns progress for a long-running bulk operation.
+    @Sendable
+    func bulkOperationProgress(req: Request) async throws -> Response {
+        guard let operationId = req.parameters.get("operationId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        // In a real implementation, this would query a job queue for progress
+        // For now, return a mock response
+        struct ProgressResponse: Content {
+            let operationId: UUID
+            let total: Int
+            let completed: Int
+            let failed: Int
+            let status: String
+        }
+
+        let progress = ProgressResponse(
+            operationId: operationId,
+            total: 100,
+            completed: 100,
+            failed: 0,
+            status: "completed"
+        )
+
+        let res = Response(status: .ok)
+        res.headers.contentType = .json
+        res.body = .init(string: String(data: try JSONEncoder().encode(progress), encoding: .utf8) ?? "")
+        return res
+    }
+
+    /// Generates an undo token for a bulk operation.
+    private func generateUndoToken(for operation: BulkOperationDTO, entryIds: [UUID]) -> String {
+        let token = UndoToken(
+            action: operation.action,
+            entryIds: entryIds,
+            originalLocale: operation.locale,
+            originalStatus: operation.status,
+            createdAt: Date()
+        )
+
+        if let data = try? JSONEncoder().encode(token),
+           let tokenString = String(data: data, encoding: .utf8) {
+            return tokenString.data(using: .utf8)!.base64EncodedString()
+        }
+
+        return ""
+    }
+}
+
+// MARK: - Undo Token
+
+/// Internal token structure for undo operations.
+private struct UndoToken: Codable {
+    let action: BulkAction
+    let entryIds: [UUID]
+    let originalLocale: String?
+    let originalStatus: ContentStatus?
+    let createdAt: Date
+}
+
+// MARK: - Content Event
+
+/// Event for content mutations.
+public struct ContentEvent: CmsEvent, Sendable {
+    public static let eventName = "content.event"
+
+    public let id: UUID
+    public let name: String
+    public let entityType: String
+    public let entityId: String
+    public let contentType: String?
+    public let data: [String: AnyCodableValue]
+    public let timestamp: Date
+
+    public init(
+        id: UUID,
+        name: String,
+        entityType: String,
+        entityId: String,
+        contentType: String? = nil,
+        data: [String: AnyCodableValue],
+        timestamp: Date
+    ) {
+        self.id = id
+        self.name = name
+        self.entityType = entityType
+        self.entityId = entityId
+        self.contentType = contentType
+        self.data = data
+        self.timestamp = timestamp
+    }
+
+    public func toDict() -> [String: Any] {
+        var dict: [String: Any] = [
+            "id": id.uuidString,
+            "name": name,
+            "entityType": entityType,
+            "entityId": entityId,
+            "timestamp": timestamp.ISO8601Format()
+        ]
+
+        if let contentType = contentType {
+            dict["contentType"] = contentType
+        }
+
+        return dict
+    }
+}
+
+// MARK: - Media Event
+
+/// Event for media mutations.
+public struct MediaEvent: CmsEvent, Sendable {
+    public static let eventName = "media.event"
+
+    public let id: UUID
+    public let name: String
+    public let entityType: String
+    public let entityId: String
+    public let data: [String: AnyCodableValue]
+    public let timestamp: Date
+
+    public init(
+        id: UUID,
+        name: String,
+        entityType: String,
+        entityId: String,
+        data: [String: AnyCodableValue],
+        timestamp: Date
+    ) {
+        self.id = id
+        self.name = name
+        self.entityType = entityType
+        self.entityId = entityId
+        self.data = data
+        self.timestamp = timestamp
+    }
+
+    public func toDict() -> [String: Any] {
+        return [
+            "id": id.uuidString,
+            "name": name,
+            "entityType": entityType,
+            "entityId": entityId,
+            "timestamp": timestamp.ISO8601Format()
+        ]
     }
 }
 

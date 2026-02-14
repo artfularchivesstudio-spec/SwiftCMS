@@ -13,6 +13,11 @@ public struct RequestCmsServices: Sendable {
     public var modules: ModuleManager {
         req.application.cms.modules
     }
+
+    /// Access the telemetry manager.
+    public var telemetry: TelemetryManager? {
+        req.application.cms.telemetry
+    }
 }
 
 extension Request {

@@ -1,3 +1,360 @@
 #extend("admin/base"):
-#extend("admin/roles/permissions"):
+#export("content"):
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+    <div>
+        <h3 class="text-xl font-semibold">Roles & Permissions</h3>
+        <p class="text-sm text-base-content/60 hidden sm:block">Manage user roles and their permissions</p>
+    </div>
+    <a href="/admin/roles/new" class="btn btn-primary btn-sm w-full sm:w-auto min-h-[44px]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+        </svg>
+        New Role
+    </a>
+</div>
+
+<!-- Mobile-friendly search -->
+<div class="mb-6">
+    <div class="relative">
+        <input type="search" placeholder="Search roles..." class="input input-bordered input-sm w-full pl-10 min-h-[44px]"
+               hx-get="/admin/roles" hx-trigger="keyup changed delay:300ms" hx-target="#roles-container" name="q">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+    </div>
+</div>
+
+<!-- Roles List - Responsive -->
+<div id="roles-container"
+     x-data="rolesTable()"
+     @refresh-roles.window="refreshRoles">
+    <!-- Mobile Card View -->
+    <div class="mobile-cards md:hidden space-y-3">
+        #for(role in roles):
+        <div class="card bg-base-100 shadow-sm mobile-card transition-all duration-200"
+             data-role-id="#(role.id)"
+             @touchstart.passive="handleCardTouchStart($event)"
+             @touchmove.passive="handleCardTouchMove($event)"
+             @touchend="handleCardTouchEnd($event, '#(role.id)')">
+            <div class="card-body p-4">
+                <!-- Card Header -->
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-semibold text-base truncate flex items-center gap-2">
+                            #(role.name)
+                            #if(role.isSystem):
+                            <span class="badge badge-xs badge-ghost">System</span>
+                            #endif
+                        </h4>
+                        <p class="text-xs text-base-content/60 mt-1 line-clamp-2">#(role.description ?? 'No description')</p>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <span class="text-xs text-base-content/50 font-mono">#(role.userCount ?? 0) users</span>
+                    </div>
+                </div>
+
+                <!-- Card Content -->
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center min-h-[44px] py-2 border-b border-base-200">
+                        <span class="text-base-content/60 w-28 flex-shrink-0">Permissions</span>
+                        <span class="flex-1 text-right truncate pl-2 font-mono text-xs">#(role.permissionsCount ?? 0) granted</span>
+                    </div>
+                    <div class="flex justify-between items-center min-h-[44px] py-2">
+                        <span class="text-base-content/60 w-28 flex-shrink-0">Created</span>
+                        <span class="flex-1 text-right truncate pl-2">#(role.createdAt.format(date: .abbreviated, time: .short))</span>
+                    </div>
+                </div>
+
+                <!-- Card Actions -->
+                <div class="card-actions mt-3 pt-3 border-t border-base-300">
+                    <button class="btn btn-sm btn-ghost flex-1 min-h-[44px]" onclick="showFieldPermissions('#(role.id)', '#(role.name)')">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        Permissions
+                    </button>
+                    <a href="/admin/roles/#(role.id)/edit" class="btn btn-sm btn-ghost flex-1 min-h-[44px]">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                        Edit
+                    </a>
+                    #if(!role.isSystem):
+                    <form method="POST" action="/admin/roles/#(role.id)/delete" onsubmit="return confirm('Delete this role?')" class="flex-1">
+                        <button type="submit" class="btn btn-sm btn-error btn-ghost w-full min-h-[44px]">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                            Delete
+                        </button>
+                    </form>
+                    #endif
+                </div>
+            </div>
+        </div>
+        #endfor
+
+        #if(count(roles) == 0):
+        <div class="text-center py-12 text-base-content/50">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            <p class="text-lg font-medium">No roles yet</p>
+            <p class="text-sm">Create your first role to get started</p>
+            <a href="/admin/roles/new" class="btn btn-primary btn-sm mt-4 min-h-[44px]">
+                Create Role
+            </a>
+        </div>
+        #endif
+    </div>
+
+    <!-- Desktop Table View -->
+    <div class="hidden md:block">
+        <div class="overflow-x-auto rounded-box shadow-sm">
+            <table class="table table-zebra">
+                <thead class="sticky top-0 bg-base-100 z-10">
+                    <tr>
+                        <th>
+                            <button class="btn btn-ghost btn-xs" onclick="toggleSort('name')">
+                                Name
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </button>
+                        </th>
+                        <th class="hidden sm:table-cell">Description</th>
+                        <th>
+                            <button class="btn btn-ghost btn-xs" onclick="toggleSort('users')">
+                                Users
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </button>
+                        </th>
+                        <th class="hidden lg:table-cell">Permissions</th>
+                        <th class="hidden md:table-cell">
+                            <button class="btn btn-ghost btn-xs" onclick="toggleSort('created')">
+                                Created
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                            </button>
+                        </th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    #for(role in roles):
+                    <tr class="hover">
+                        <td>
+                            <div class="font-medium flex items-center gap-2">
+                                #(role.name)
+                                #if(role.isSystem):
+                                <span class="badge badge-xs badge-ghost">System</span>
+                                #endif
+                            </div>
+                        </td>
+                        <td class="hidden sm:table-cell text-sm text-base-content/60 max-w-xs truncate" title="#(role.description ?? '')">
+                            #(role.description ?? '-')
+                        </td>
+                        <td>
+                            <span class="badge badge-ghost badge-sm">#(role.userCount ?? 0)</span>
+                        </td>
+                        <td class="hidden lg:table-cell text-sm text-base-content/60">
+                            #(role.permissionsCount ?? 0) granted
+                        </td>
+                        <td class="hidden md:table-cell text-sm text-base-content/60">
+                            #(role.createdAt.format(date: .abbreviated, time: .short))
+                        </td>
+                        <td class="text-right">
+                            <div class="flex gap-1 justify-end">
+                                <button class="btn btn-ghost btn-xs" onclick="showFieldPermissions('#(role.id)', '#(role.name)')" title="Field Permissions">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                    </svg>
+                                </button>
+                                <a href="/admin/roles/#(role.id)/edit" class="btn btn-ghost btn-xs" title="Edit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                    </svg>
+                                </a>
+                                #if(!role.isSystem):
+                                <form method="POST" action="/admin/roles/#(role.id)/delete" onsubmit="return confirm('Delete this role?')" class="inline">
+                                    <button type="submit" class="btn btn-error btn-ghost btn-xs" title="Delete">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </form>
+                                #endif
+                            </div>
+                        </td>
+                    </tr>
+                    #endfor
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Responsive Pagination -->
+    #if(totalPages > 1):
+    <div class="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+        <div class="text-sm text-base-content/60 text-center sm:text-left">
+            Showing <span class="font-medium">#((page - 1) * pageSize + 1)</span> to <span class="font-medium">#(min(page * pageSize, totalRoles))</span> of <span class="font-medium">#(totalRoles)</span> roles
+        </div>
+        <div class="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+            #if(page > 1):
+            <a href="?page=#(page - 1)" class="btn btn-sm min-h-[44px] px-4 flex-1 sm:flex-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                <span class="hidden sm:inline">Previous</span>
+            </a>
+            #endif
+
+            <div class="hidden sm:flex gap-1">
+                #for(p in 1...totalPages):
+                    #if(p == page || p == 1 || p == totalPages || (p >= page - 1 && p <= page + 1)):
+                        <a href="?page=#(p)" class="btn btn-sm #if(p == page):btn-active #else:btn-ghost #endif min-h-[44px] w-10">#(p)</a>
+                    #elseif(p == page - 2 || p == page + 2):
+                        <span class="btn btn-sm btn-disabled min-h-[44px]">...</span>
+                    #endif
+                #endfor
+            </div>
+
+            <span class="btn btn-sm btn-disabled min-h-[44px] flex-1 sm:flex-none sm:hidden">
+                Page #(page) / #(totalPages)
+            </span>
+
+            #if(page < totalPages):
+            <a href="?page=#(page + 1)" class="btn btn-sm min-h-[44px] px-4 flex-1 sm:flex-none">
+                <span class="hidden sm:inline">Next</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </a>
+            #endif
+        </div>
+    </div>
+    #endif
+</div>
+
+<script>
+function rolesTable() {
+    return {
+        swipeStartX: 0,
+        swipeStartTime: 0,
+        currentCard: null,
+
+        init() {
+            console.log('Roles table initialized');
+        },
+
+        handleCardTouchStart(e) {
+            this.swipeStartX = e.touches[0].clientX;
+            this.swipeStartTime = Date.now();
+            this.currentCard = e.target.closest('.mobile-card');
+        },
+
+        handleCardTouchMove(e) {
+            if (!this.currentCard) return;
+
+            const currentX = e.touches[0].clientX;
+            const diff = this.swipeStartX - currentX;
+
+            if (Math.abs(diff) > 10) {
+                const cardBody = this.currentCard.querySelector('.card-body');
+                const transform = Math.max(-100, Math.min(100, -diff));
+                cardBody.style.transform = `translateX(${transform}px)`;
+            }
+        },
+
+        handleCardTouchEnd(e, roleId) {
+            if (!this.currentCard) return;
+
+            const endX = e.changedTouches[0].clientX;
+            const diff = this.swipeStartX - endX;
+
+            const cardBody = this.currentCard.querySelector('.card-body');
+            cardBody.style.transition = 'transform 0.3s ease';
+            cardBody.style.transform = '';
+
+            // Quick actions on swipe
+            if (Math.abs(diff) > 80) {
+                this.showQuickActions(roleId);
+            }
+
+            this.currentCard = null;
+        },
+
+        showQuickActions(roleId) {
+            const card = document.querySelector(`[data-role-id="${roleId}"]`);
+            const actions = card.querySelector('.card-actions');
+            actions.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            actions.classList.add('ring-2', 'ring-primary');
+            setTimeout(() => actions.classList.remove('ring-2', 'ring-primary'), 1000);
+        },
+
+        refreshRoles() {
+            window.location.reload();
+        }
+    };
+}
+
+function toggleSort(field) {
+    const url = new URL(window.location);
+    const currentSort = url.searchParams.get(`sort.${field}`);
+
+    if (currentSort === 'asc') {
+        url.searchParams.set(`sort.${field}`, 'desc');
+    } else {
+        url.searchParams.set(`sort.${field}`, 'asc');
+    }
+
+    window.location = url.toString();
+}
+</script>
+
+<style>
+.mobile-card {
+    touch-action: pan-y;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mobile-card:active {
+    transform: scale(0.99);
+}
+
+/* Touch-friendly interactions */
+@media (hover: none) {
+    .btn:hover {
+        transform: none;
+    }
+
+    .btn:active {
+        transform: scale(0.95);
+    }
+}
+
+/* Smooth transitions */
+.mobile-card, .btn, a {
+    transition: all 0.2s ease;
+}
+
+/* Better mobile text rendering */
+@media (max-width: 640px) {
+    body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+}
+
+/* Loading state for HTMX */
+.htmx-request .mobile-cards,
+.htmx-request .table-wrapper {
+    opacity: 0.6;
+    pointer-events: none;
+}
+</style>
+#endexport
 #endextend

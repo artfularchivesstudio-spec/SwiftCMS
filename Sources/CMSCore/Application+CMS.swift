@@ -33,6 +33,16 @@ public struct CmsServices: Sendable {
             app.storage[HookRegistryKey.self] = newValue
         }
     }
+
+    /// The telemetry manager.
+    public var telemetry: TelemetryManager? {
+        get {
+            app.storage[TelemetryManagerKey.self]
+        }
+        nonmutating set {
+            app.storage[TelemetryManagerKey.self] = newValue
+        }
+    }
 }
 
 // MARK: - Application Extension
@@ -52,4 +62,8 @@ struct ModuleManagerKey: StorageKey {
 
 struct HookRegistryKey: StorageKey {
     typealias Value = HookRegistry
+}
+
+struct TelemetryManagerKey: StorageKey {
+    typealias Value = TelemetryManager
 }

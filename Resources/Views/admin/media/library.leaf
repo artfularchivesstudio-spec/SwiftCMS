@@ -1,89 +1,629 @@
 #extend("admin/base"):
 #export("content"):
-<div class="flex justify-between items-center mb-6">
-    <h3 class="text-lg font-semibold">Media Library</h3>
-    <label for="upload-modal" class="btn btn-primary btn-sm">+ Upload</label>
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+    <div>
+        <h3 class="text-xl font-semibold">Media Library</h3>
+        <p class="text-sm text-base-content/60 hidden sm:block">Manage your images, videos, and documents</p>
+    </div>
+    <label for="upload-modal" class="btn btn-primary btn-sm w-full sm:w-auto min-h-[44px]">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+        </svg>
+        Upload File
+    </label>
 </div>
 
-<!-- Filter -->
-<div class="flex gap-2 mb-4">
-    <select class="select select-bordered select-sm" onchange="window.location.search='?type='+this.value">
-        <option value="">All Types</option>
-        <option value="image">Images</option>
-        <option value="application/pdf">PDFs</option>
-        <option value="video">Videos</option>
-        <option value="audio">Audio</option>
-    </select>
-    <input type="text" placeholder="Search files..." class="input input-bordered input-sm flex-1"
-           hx-get="/admin/media" hx-trigger="keyup changed delay:300ms" hx-target="#media-grid" name="q">
+<!-- Mobile-friendly filters -->
+<div class="space-y-3 mb-6">
+    <div class="flex flex-col sm:flex-row gap-2">
+        <div class="relative flex-1">
+            <input type="search" placeholder="Search files..." class="input input-bordered input-sm w-full pl-10 min-h-[44px]"
+                   hx-get="/admin/media" hx-trigger="keyup changed delay:300ms" hx-target="#media-grid" name="q">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </div>
+        <button class="btn btn-sm btn-ghost sm:hidden min-h-[44px]" onclick="toggleMediaFilters()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Filters
+        </button>
+    </div>
+
+    <div id="media-filters" class="hidden sm:flex gap-2 flex-wrap">
+        <select class="select select-bordered select-sm min-h-[44px] flex-1 sm:flex-none"
+                onchange="window.location.search='?type='+this.value">
+            <option value="">All Types</option>
+            <option value="image">Images</option>
+            <option value="application/pdf">PDFs</option>
+            <option value="video">Videos</option>
+            <option value="audio">Audio</option>
+        </select>
+
+        <select class="select select-bordered select-sm min-h-[44px] flex-1 sm:flex-none" onchange="applySort(this.value)">
+            <option value="">Sort by: Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="name">Name (A-Z)</option>
+            <option value="size">Size</option>
+        </select>
+
+        <div class="join">
+            <button class="btn btn-sm join-item min-h-[44px] #if(view == 'grid'):btn-active #else:btn-ghost #endif"
+                    onclick="setView('grid')" title="Grid View">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+            </button>
+            <button class="btn btn-sm join-item min-h-[44px] #if(view == 'list'):btn-active #else:btn-ghost #endif"
+                    onclick="setView('list')" title="List View">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+        </div>
+    </div>
 </div>
 
-<!-- Media Grid -->
-<div id="media-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+<!-- Bulk Operations Bar -->
+<div class="mb-4" x-data="mediaBulkOperations()" x-show="selectedCount > 0" x-transition style="display: none;">
+    <div class="bg-primary/10 border border-primary/20 rounded-lg p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium">
+                <span x-text="selectedCount"></span> files selected
+            </span>
+            <button @click="clearSelection()" class="btn btn-ghost btn-xs min-h-[32px]">Clear</button>
+        </div>
+        <div class="flex items-center gap-2">
+            <button @click="performBulkAction('delete')" class="btn btn-sm btn-error min-h-[44px]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Media Grid (Responsive) -->
+<div id="media-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4"
+     x-data="mediaGridSelection()"
+     x-init="initSelection()">
+    <!-- Mobile Selection Bar -->
+    <div class="col-span-full flex items-center gap-2 p-2 bg-base-200 rounded-lg mb-2" x-show="selectedCount > 0" x-transition style="display: none;">
+        <label class="cursor-pointer">
+            <input type="checkbox" class="checkbox checkbox-sm"
+                   @change="toggleAll($el.checked)"
+                   :checked="isAllSelected">
+        </label>
+        <span class="text-sm" x-text="selectedCount + ' selected'"></span>
+        <button @click="clearSelection()" class="btn btn-ghost btn-xs ml-auto">Clear</button>
+    </div>
+
     #for(file in files):
-    <div class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
-        <figure class="h-32 bg-base-300 flex items-center justify-center overflow-hidden">
+    <div class="card bg-base-100 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer group media-card relative"
+         :class="{ 'ring-2 ring-primary': isRowSelected('#(file.id)') }"
+         data-file-id="#(file.id)"
+         @touchstart.passive="handleTouchStart($event)"
+         @touchmove.passive="handleTouchMove($event)"
+         @touchend="handleTouchEnd($event, '#(file.id)')"
+         onclick="openMediaPreview('#(file.id)', '#(file.filename)', '#(file.storagePath)', '#(file.mimeType)')">
+        <!-- Selection Checkbox -->
+        <label class="absolute top-2 left-2 z-10 bg-base-100 rounded-full p-1 shadow cursor-pointer" @click.stop>
+            <input type="checkbox" class="checkbox checkbox-sm"
+                   value="#(file.id)"
+                   @change="toggleRow('#(file.id)', $el.checked)"
+                   :checked="isRowSelected('#(file.id)')">
+        </label>
+
+        <figure class="h-24 sm:h-32 bg-base-300 flex items-center justify-center overflow-hidden relative">
             #if(file.mimeType == "image/png" || file.mimeType == "image/jpeg" || file.mimeType == "image/gif" || file.mimeType == "image/webp"):
-            <img src="/#(file.storagePath)" alt="#(file.filename)" class="object-cover h-full w-full">
+            <img src="/#(file.storagePath)" alt="#(file.filename)" class="object-cover h-full w-full" loading="lazy">
             #elseif(file.mimeType == "image/svg+xml"):
-            <img src="/#(file.storagePath)" alt="#(file.filename)" class="object-contain h-20 w-20">
+            <img src="/#(file.storagePath)" alt="#(file.filename)" class="object-contain h-16 w-16 p-2" loading="lazy">
             #elseif(file.mimeType == "application/pdf"):
-            <span class="text-3xl">PDF</span>
+            <span class="text-2xl sm:text-3xl">PDF</span>
             #elseif(file.mimeType == "video/mp4"):
-            <span class="text-3xl">VID</span>
+            <span class="text-2xl sm:text-3xl">VID</span>
+            #elseif(file.mimeType.startsWith("audio/")):
+            <span class="text-2xl sm:text-3xl">AUDIO</span>
             #else:
-            <span class="text-3xl">DOC</span>
+            <span class="text-2xl sm:text-3xl">DOC</span>
             #endif
-        </figure>
-        <div class="card-body p-2">
-            <p class="text-xs truncate font-medium">#(file.filename)</p>
-            <p class="text-xs text-base-content/50">#(file.mimeType)</p>
-            <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 mt-1">
-                <button class="btn btn-ghost btn-xs" onclick="navigator.clipboard.writeText('/#(file.storagePath)')">Copy URL</button>
-                <form method="DELETE" action="/api/v1/media/#(file.id)"
-                      onsubmit="return confirm('Delete this file?')">
-                    <button class="btn btn-error btn-xs btn-outline">Del</button>
+
+            <!-- Quick actions overlay -->
+            <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button class="btn btn-circle btn-sm btn-ghost text-white min-h-[36px] min-w-[36px]"
+                        onclick="event.stopPropagation(); copyMediaUrl('#(file.storagePath)')"
+                        title="Copy URL">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                </button>
+                <form method="POST" action="/admin/media/#(file.id)/delete" onsubmit="return confirm('Delete this file?')" class="inline">
+                    <button type="submit" class="btn btn-circle btn-sm btn-error text-white min-h-[36px] min-w-[36px]"
+                            onclick="event.stopPropagation()" title="Delete">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
                 </form>
+            </div>
+        </figure>
+        <div class="card-body p-2 sm:p-3">
+            <p class="text-xs truncate font-medium" title="#(file.filename)">#(file.filename)</p>
+            <div class="flex justify-between items-center mt-1">
+                <p class="text-xs text-base-content/50">#(file.mimeType.split("/").last?.uppercased() ?? file.mimeType)</p>
+                <p class="text-xs text-base-content/40">#(file.size ?? "")</p>
             </div>
         </div>
     </div>
     #endfor
+
     #if(count(files) == 0):
     <div class="col-span-full text-center py-12 text-base-content/50">
-        <p class="text-lg mb-2">No media files yet</p>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <p class="text-lg font-medium">No media files yet</p>
         <p class="text-sm">Upload your first file using the button above</p>
     </div>
     #endif
 </div>
 
+<!-- Media Preview Modal -->
+<dialog id="media-preview-modal" class="modal">
+    <div class="modal-box max-w-4xl w-full p-0">
+        <div class="flex justify-between items-center p-4 border-b border-base-300">
+            <h3 class="font-bold text-lg truncate" id="preview-filename">filename.jpg</h3>
+            <button class="btn btn-sm btn-circle btn-ghost min-h-[36px] min-w-[36px]" onclick="document.getElementById('media-preview-modal').close()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+        <div class="p-4 flex items-center justify-center bg-base-200 min-h-[300px]" id="preview-content">
+            <!-- Preview content loaded dynamically -->
+        </div>
+        <div class="p-4 border-t border-base-300 flex flex-wrap gap-2 justify-end">
+            <button class="btn btn-sm btn-ghost min-h-[44px]" onclick="copyMediaUrlFromPreview()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy URL
+            </button>
+            <a id="preview-download-link" href="#" download class="btn btn-sm btn-primary min-h-[44px]">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Download
+            </a>
+            <form id="preview-delete-form" method="POST" onsubmit="return confirm('Delete this file?')" class="inline">
+                <button type="submit" class="btn btn-sm btn-error min-h-[44px]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
 <!-- Upload Modal -->
 <input type="checkbox" id="upload-modal" class="modal-toggle">
 <div class="modal">
-    <div class="modal-box">
+    <div class="modal-box max-w-md w-full">
         <h3 class="font-bold text-lg mb-4">Upload File</h3>
-        <form method="POST" action="/admin/media/upload" enctype="multipart/form-data">
-            <div class="form-control mb-4" x-data="{ dragover: false }">
-                <div class="border-2 border-dashed rounded-lg p-8 text-center transition-colors"
+        <form method="POST" action="/admin/media/upload" enctype="multipart/form-data" x-data="{ dragover: false }">
+            <div class="form-control mb-4">
+                <div class="border-2 border-dashed rounded-lg p-6 sm:p-8 text-center transition-all duration-200 min-h-[200px] flex flex-col items-center justify-center"
                      :class="dragover ? 'border-primary bg-primary/5' : 'border-base-300'"
                      @dragover.prevent="dragover = true"
                      @dragleave="dragover = false"
-                     @drop.prevent="dragover = false; $refs.fileInput.files = $event.dataTransfer.files">
-                    <p class="text-base-content/60 mb-2">Drag & drop a file here, or</p>
-                    <label class="btn btn-outline btn-sm">
+                     @drop.prevent="dragover = false; handleDrop($event)">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p class="text-base-content/60 mb-3 text-sm">Drag & drop a file here, or</p>
+                    <label class="btn btn-outline btn-sm min-h-[44px]">
                         Choose File
                         <input type="file" name="file" class="hidden" x-ref="fileInput"
-                               accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.mp4,.mp3,.doc,.docx,.xls,.xlsx">
+                               accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.mp4,.mp3,.doc,.docx,.xls,.xlsx"
+                               onchange="handleFileSelect(this)">
                     </label>
-                    <p class="text-xs text-base-content/40 mt-2">Max 50MB. Supported: images, PDFs, videos, docs</p>
+                    <p class="text-xs text-base-content/40 mt-3 px-4">Max 50MB. Supported: images, PDFs, videos, audio, docs</p>
+                    <p x-show="fileInput && fileInput.files && fileInput.files[0]" class="text-xs text-primary mt-2 font-medium" x-text="fileInput?.files?.[0]?.name"></p>
                 </div>
             </div>
-            <div class="modal-action">
-                <label for="upload-modal" class="btn btn-ghost">Cancel</label>
-                <button type="submit" class="btn btn-primary">Upload</button>
+            <div class="modal-action flex flex-col sm:flex-row gap-2">
+                <label for="upload-modal" class="btn btn-ghost flex-1 min-h-[44px]">Cancel</label>
+                <button type="submit" class="btn btn-primary flex-1 min-h-[44px]">Upload</button>
             </div>
         </form>
     </div>
     <label class="modal-backdrop" for="upload-modal"></label>
 </div>
+
+<script>
+function handleDrop(event) {
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+        const fileInput = document.querySelector('input[type="file"]');
+        fileInput.files = files;
+        // Update filename display
+        Alpine.nextTick(() => {
+            const display = document.querySelector('[x-text*="fileInput"]');
+            if (display) display.__x.$data.fileInput = { files: files };
+        });
+    }
+}
+
+function handleFileSelect(input) {
+    if (input.files && input.files[0]) {
+        console.log('Selected file:', input.files[0].name);
+    }
+}
+</script>
+
+<script>
+// Media Selection with Touch Support
+function mediaGridSelection() {
+    const STORAGE_KEY = 'bulkSelection_media';
+
+    return {
+        selectedFiles: new Set(),
+        isAllSelected: false,
+        swipeStartX: 0,
+        swipeStartTime: 0,
+        currentCard: null,
+
+        initSelection() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    this.selectedFiles = new Set(JSON.parse(saved));
+                    this.updateSelectAllState();
+                }
+            } catch (e) {
+                console.error('Failed to restore selection:', e);
+            }
+        },
+
+        get selectedCount() {
+            return this.selectedFiles.size;
+        },
+
+        isRowSelected(id) {
+            return this.selectedFiles.has(id);
+        },
+
+        toggleRow(id, checked) {
+            if (checked) {
+                this.selectedFiles.add(id);
+            } else {
+                this.selectedFiles.delete(id);
+            }
+            this.saveSelection();
+            this.updateSelectAllState();
+        },
+
+        toggleAll(checked) {
+            const checkboxes = document.querySelectorAll('#media-grid input[type="checkbox"]');
+            this.isAllSelected = checked;
+
+            if (checked) {
+                checkboxes.forEach(cb => {
+                    this.selectedFiles.add(cb.value);
+                    cb.checked = true;
+                });
+            } else {
+                this.selectedFiles.clear();
+                checkboxes.forEach(cb => cb.checked = false);
+            }
+            this.saveSelection();
+        },
+
+        clearSelection() {
+            this.selectedFiles.clear();
+            this.isAllSelected = false;
+            this.saveSelection();
+            this.updateCheckboxes();
+        },
+
+        saveSelection() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify([...this.selectedFiles]));
+            } catch (e) {
+                console.error('Failed to save selection:', e);
+            }
+        },
+
+        updateCheckboxes() {
+            const checkboxes = document.querySelectorAll('#media-grid input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                cb.checked = this.selectedFiles.has(cb.value);
+            });
+        },
+
+        updateSelectAllState() {
+            const checkboxes = document.querySelectorAll('#media-grid input[type="checkbox"]');
+            if (checkboxes.length === 0) {
+                this.isAllSelected = false;
+                return;
+            }
+            this.isAllSelected = [...this.selectedFiles].size === checkboxes.length;
+        },
+
+        getSelectedIds() {
+            return [...this.selectedFiles];
+        },
+
+        // Touch handlers for mobile swipe actions
+        handleTouchStart(e) {
+            this.swipeStartX = e.touches[0].clientX;
+            this.swipeStartTime = Date.now();
+            this.currentCard = e.target.closest('.media-card');
+        },
+
+        handleTouchMove(e) {
+            if (!this.currentCard) return;
+
+            const currentX = e.touches[0].clientX;
+            const diff = this.swipeStartX - currentX;
+
+            if (Math.abs(diff) > 10) {
+                const card = this.currentCard;
+                const transform = Math.max(-50, Math.min(50, -diff));
+                card.style.transform = `translateX(${transform}px)`;
+            }
+        },
+
+        handleTouchEnd(e, fileId) {
+            if (!this.currentCard) return;
+
+            const endX = e.changedTouches[0].clientX;
+            const diff = this.swipeStartX - endX;
+
+            const card = this.currentCard;
+            card.style.transition = 'transform 0.3s ease';
+            card.style.transform = '';
+
+            // Long press or swipe to show actions
+            const duration = Date.now() - this.swipeStartTime;
+            if (duration > 500 || Math.abs(diff) > 80) {
+                this.showQuickActions(fileId);
+            }
+
+            this.currentCard = null;
+        },
+
+        showQuickActions(fileId) {
+            const card = document.querySelector(`[data-file-id="${fileId}"]`);
+            const overlay = card.querySelector('.absolute.inset-0');
+            overlay.style.opacity = '1';
+            setTimeout(() => {
+                overlay.style.opacity = '';
+            }, 2000);
+        }
+    };
+}
+
+// Media Bulk Operations
+function mediaBulkOperations() {
+    return {
+        get selectedCount() {
+            const mediaSel = document.querySelector('[x-data*="mediaGridSelection"]')?._x_dataStack[0];
+            return mediaSel?.selectedCount || 0;
+        },
+
+        async performBulkAction(action) {
+            const mediaSel = document.querySelector('[x-data*="mediaGridSelection"]')?._x_dataStack[0];
+            const fileIds = mediaSel?.getSelectedIds() || [];
+
+            if (fileIds.length === 0) {
+                alert('Please select at least one file');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to delete ${fileIds.length} file(s)? This action cannot be undone.`)) {
+                return;
+            }
+
+            const payload = {
+                fileIds: fileIds,
+                action: action
+            };
+
+            try {
+                const response = await fetch(`/admin/media/bulk`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (result.successCount > 0) {
+                    if (mediaSel) {
+                        mediaSel.clearSelection();
+                    }
+                    setTimeout(() => window.location.reload(), 500);
+                } else {
+                    alert('Operation failed: ' + (result.failures[0]?.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Bulk operation failed:', error);
+                alert('Operation failed. Please try again.');
+            }
+        }
+    };
+}
+
+function toggleMediaFilters() {
+    const filters = document.getElementById('media-filters');
+    filters.classList.toggle('hidden');
+}
+
+function setView(view) {
+    const url = new URL(window.location);
+    url.searchParams.set('view', view);
+    window.location = url.toString();
+}
+
+function applySort(sortBy) {
+    const url = new URL(window.location);
+    if (sortBy) {
+        url.searchParams.set('sort', sortBy);
+    } else {
+        url.searchParams.delete('sort');
+    }
+    window.location = url.toString();
+}
+
+function copyMediaUrl(path) {
+    const url = `${window.location.origin}/${path}`;
+    navigator.clipboard.writeText(url).then(() => {
+        showToast('URL copied to clipboard!');
+    });
+}
+
+let currentPreviewUrl = '';
+
+function openMediaPreview(id, filename, path, mimeType) {
+    const modal = document.getElementById('media-preview-modal');
+    const title = document.getElementById('preview-filename');
+    const content = document.getElementById('preview-content');
+    const downloadLink = document.getElementById('preview-download-link');
+    const deleteForm = document.getElementById('preview-delete-form');
+
+    title.textContent = filename;
+    currentPreviewUrl = `${window.location.origin}/${path}`;
+    downloadLink.href = currentPreviewUrl;
+    deleteForm.action = `/admin/media/${id}/delete`;
+
+    // Generate preview based on mime type
+    if (mimeType.startsWith('image/')) {
+        content.innerHTML = `<img src="/${path}" alt="${filename}" class="max-w-full max-h-[60vh] object-contain">`;
+    } else if (mimeType.startsWith('video/')) {
+        content.innerHTML = `<video src="/${path}" controls class="max-w-full max-h-[60vh]"></video>`;
+    } else if (mimeType.startsWith('audio/')) {
+        content.innerHTML = `
+            <div class="text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                </svg>
+                <audio src="/${path}" controls class="w-full max-w-md"></audio>
+            </div>`;
+    } else {
+        content.innerHTML = `
+            <div class="text-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-24 w-24 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                <p class="text-base-content/60">Preview not available for this file type</p>
+            </div>`;
+    }
+
+    modal.showModal();
+}
+
+function copyMediaUrlFromPreview() {
+    navigator.clipboard.writeText(currentPreviewUrl).then(() => {
+        showToast('URL copied to clipboard!');
+    });
+}
+
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-top toast-center z-50';
+    toast.innerHTML = `
+        <div class="alert alert-success shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span>${message}</span>
+        </div>
+    `;
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+</script>
+
+<style>
+.media-card {
+    touch-action: pan-y;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.media-card:active {
+    transform: scale(0.97);
+}
+
+/* Lazy loading for images */
+img[loading="lazy"] {
+    background: linear-gradient(90deg, theme('base.200') 25%, theme('base.300') 50%, theme('base.200') 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Touch-friendly interactions */
+@media (hover: none) {
+    .media-card .absolute.inset-0 {
+        opacity: 0 !important;
+    }
+
+    .media-card:active .absolute.inset-0 {
+        opacity: 1 !important;
+    }
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 640px) {
+    .card-body {
+        padding: 0.5rem;
+    }
+}
+
+/* Pull-to-refresh indicator */
+@media (max-width: 768px) {
+    #media-grid {
+        min-height: calc(100vh - 300px);
+    }
+}
+
+/* Modal responsive adjustments */
+@media (max-width: 640px) {
+    .modal-box {
+        margin: 0;
+        height: 100vh;
+        max-height: 100vh;
+        border-radius: 0;
+    }
+}
+
+/* File upload drag zone */
+input[type="file"] {
+    font-size: 16px; /* Prevent zoom on iOS */
+}
+
+/* Loading state for HTMX */
+.htmx-request #media-grid {
+    opacity: 0.6;
+    pointer-events: none;
+}
+</style>
 #endexport
 #endextend

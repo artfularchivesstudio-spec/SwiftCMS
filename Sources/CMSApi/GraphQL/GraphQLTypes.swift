@@ -113,17 +113,20 @@ public struct CreateContentEntryInput: Codable, Sendable {
     public let data: [String: AnyCodableValue]
     public let status: String?
     public let publishAt: Date?
+    public let locale: String?
 
     public init(
         contentType: String,
         data: [String: AnyCodableValue],
         status: String? = nil,
-        publishAt: Date? = nil
+        publishAt: Date? = nil,
+        locale: String? = nil
     ) {
         self.contentType = contentType
         self.data = data
         self.status = status
         self.publishAt = publishAt
+        self.locale = locale
     }
 }
 

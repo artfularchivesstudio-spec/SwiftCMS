@@ -50,6 +50,12 @@ public func configure(_ app: Application) async throws {
     // ─── Leaf Templates ───────────────────────────────────────────
     app.views.use(.leaf)
 
+    // ─── Telemetry / Observability ───────────────────────────────
+    let telemetryConfig = TelemetryConfiguration.fromEnvironment()
+    let telemetryManager = TelemetryManager(configuration: telemetryConfig, logger: app.logger)
+    app.cms.telemetry = telemetryManager
+    app.logger.info("Telemetry configured: \(telemetryConfig.exporter.rawValue) exporter")
+
     // ─── Middleware ────────────────────────────────────────────────
     app.middleware.use(ErrorMiddleware.default(environment: app.environment))
     app.middleware.use(app.sessions.middleware)
@@ -74,6 +80,12 @@ public func configure(_ app: Application) async throws {
     // Request ID + structured logging
     app.middleware.use(RequestIdMiddleware())
     app.middleware.use(StructuredLoggingMiddleware())
+
+    // Distributed tracing
+    if let telemetry = app.cms.telemetry {
+        app.middleware.use(TracingMiddleware(telemetry: telemetry))
+        app.logger.info("Distributed tracing enabled")
+    }
 
     // Multi-tenancy (active only when MULTI_TENANT=true)
     app.middleware.use(TenantContextMiddleware())

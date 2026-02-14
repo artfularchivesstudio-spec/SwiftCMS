@@ -1,5 +1,6 @@
 import Vapor
 import Fluent
+import CMSCore
 import CMSApi
 import CMSAdmin
 import CMSAuth
@@ -30,6 +31,22 @@ public func routes(_ app: Application) throws {
 
     app.get("startup") { _ -> HTTPStatus in
         .ok
+    }
+
+    // Telemetry health check
+    app.get("health", "telemetry") { req -> TelemetryHealthCheckResponse in
+        guard let telemetry = req.cms.telemetry else {
+            return TelemetryHealthCheckResponse(
+                exporter: "none",
+                healthy: true,
+                activeSpans: 0,
+                pendingSpans: 0,
+                pendingMetrics: 0,
+                samplingRate: 0.0,
+                metricsEnabled: false
+            )
+        }
+        return await telemetry.healthCheckResponse()
     }
 
     // ─── API v1 ───────────────────────────────────────────────────
@@ -99,6 +116,9 @@ public func routes(_ app: Application) throws {
     try app.register(collection: RolesController())
     try app.register(collection: VersionAdminController())
     try app.register(collection: LocaleSettingsController())
+
+    // ─── GraphQL API ──────────────────────────────────────────────
+    try app.register(collection: GraphQLController())
 
     app.logger.info("Routes registered")
 }
