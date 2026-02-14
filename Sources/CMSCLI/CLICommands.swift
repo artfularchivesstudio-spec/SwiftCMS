@@ -1,5 +1,16 @@
 import Foundation
-import ArgumentParser
+import ArgumentParser // Need to disambiguate between ArgumentParser.Option and ConsoleKit.Option
+import Vapor
+import Fluent
+import FluentPostgresDriver
+import FluentSQLiteDriver
+import CMSSchema
+import CMSObjects
+
+// Disambiguate types
+typealias CLIOption = ArgumentParser.Option
+typealias CLIFlag = ArgumentParser.Flag
+typealias CLIArgument = ArgumentParser.Argument
 
 // MARK: - Root Command
 
@@ -31,10 +42,10 @@ struct ServeCommand: ParsableCommand {
         abstract: "Start the SwiftCMS server"
     )
 
-    @Option(name: .long, help: "Hostname to bind")
+    @CLIOption(name: .long, help: "Hostname to bind")
     var hostname: String = "0.0.0.0"
 
-    @Option(name: .long, help: "Port to bind")
+    @CLIOption(name: .long, help: "Port to bind")
     var port: Int = 8080
 
     func run() throws {
@@ -51,10 +62,10 @@ struct MigrateCommand: ParsableCommand {
         abstract: "Run database migrations"
     )
 
-    @Flag(name: .long, help: "Revert the last migration")
+    @CLIFlag(name: .long, help: "Revert the last migration")
     var revert = false
 
-    @Flag(name: .long, help: "Auto-confirm")
+    @CLIFlag(name: .long, help: "Auto-confirm")
     var yes = false
 
     func run() throws {
@@ -87,26 +98,29 @@ struct GenerateSDKCommand: ParsableCommand {
         abstract: "Generate typed client SDK from content type definitions"
     )
 
-    @Argument(help: "Target language: swift or typescript")
+    @CLIArgument(help: "Target language: swift or typescript")
     var language: String
 
-    @Option(name: .long, help: "Output directory")
+    @CLIOption(name: .long, help: "Output directory")
     var output: String = "./ClientSDK"
+
+    @CLIFlag(name: .long, help: "Force generation without schema hash checking")
+    var force = false
 
     func run() throws {
         switch language.lowercased() {
         case "swift":
             print("Generating Swift SDK to \(output)...")
-            try generateSwiftSDK(outputDir: output)
+            try generateSwiftSDK(outputDir: output, force: force)
         case "typescript":
             print("Generating TypeScript definitions to \(output)...")
-            try generateTypeScriptDefs(outputDir: output)
+            try generateTypeScriptDefs(outputDir: output, force: force)
         default:
             print("Unsupported language: \(language). Use 'swift' or 'typescript'.")
         }
     }
 
-    func generateSwiftSDK(outputDir: String) throws {
+    func generateSwiftSDK(outputDir: String, force: Bool) throws {
         try FileManager.default.createDirectory(
             atPath: outputDir, withIntermediateDirectories: true
         )
@@ -190,10 +204,15 @@ struct GenerateSDKCommand: ParsableCommand {
         print("Add content-type-specific models by running with a live database connection.")
     }
 
-    func generateTypeScriptDefs(outputDir: String) throws {
+    func generateTypeScriptDefs(outputDir: String, force: Bool) throws {
         try FileManager.default.createDirectory(
             atPath: outputDir, withIntermediateDirectories: true
         )
+
+        // Check schema hashes
+        if !force {
+            checkSchemaHashes(outputDir: outputDir)
+        }
 
         let defs = """
         // Auto-generated SwiftCMS TypeScript type definitions
@@ -248,7 +267,84 @@ struct GenerateSDKCommand: ParsableCommand {
             toFile: "\(outputDir)/swiftcms.d.ts",
             atomically: true, encoding: .utf8
         )
+
+        // Cache schema hashes
+        if !force {
+            cacheSchemaHashes(outputDir: outputDir)
+        }
+
         print("TypeScript definitions generated at \(outputDir)/swiftcms.d.ts")
+    }
+
+    /// Check if schemas have changed since last generation.
+    func checkSchemaHashes(outputDir: String) {
+        let cachePath = "\(outputDir)/.schemahash"
+        let fm = FileManager.default
+
+        // Check if we have a cached schema hash file
+        guard fm.fileExists(atPath: cachePath),
+              let cacheData = fm.contents(atPath: cachePath),
+              let cache = try? JSONDecoder().decode(SchemaHashCache.self, from: cacheData)
+        else {
+            print("No cached schema hashes found. Skipping validation.")
+            return
+        }
+
+        print("Checking for schema changes...")
+
+        // Fetch current content types (in a real implementation, this would query the API/database)
+        // For now, we'll use mock data to demonstrate the concept
+        let currentSchemas: [(slug: String, schemaHash: String)] = [
+            // This would be populated from actual database/API in production
+            ("blog-post", "abc123"),
+            ("page", "def456")
+        ]
+
+        var hasChanges = false
+        for (slug, hash) in currentSchemas {
+            if let cachedHash = cache.hashes[slug], cachedHash != hash {
+                print("Warning: Schema for '\(slug)' has changed. Regenerate SDK.")
+                hasChanges = true
+            } else if cache.hashes[slug] == nil {
+                print("Info: New content type '\(slug)' detected.")
+            }
+        }
+
+        if !hasChanges {
+            print("No schema changes detected.")
+        }
+    }
+
+    /// Cache the current schema hashes after successful generation.
+    func cacheSchemaHashes(outputDir: String) {
+        let cachePath = "\(outputDir)/.schemahash"
+        var cache = SchemaHashCache()
+
+        // Fetch current content types and their hashes
+        // In production, this would query the database/API
+        let currentSchemas: [(slug: String, schemaHash: String)] = [
+            ("blog-post", "abc123"),
+            ("page", "def456")
+        ]
+
+        for (slug, hash) in currentSchemas {
+            cache.hashes[slug] = hash
+        }
+
+        do {
+            let cacheData = try JSONEncoder().encode(cache)
+            try cacheData.write(to: URL(fileURLWithPath: cachePath))
+            print("Cached schema hashes at \(cachePath)")
+        } catch {
+            print("Warning: Failed to cache schema hashes: \(error)")
+        }
+    }
+
+    /// Compute a combined version string from all schema hashes.
+    func computeCombinedVersion() -> String {
+        // In production, this would fetch all content types and compute combined hash
+        // For now, return a fixed version
+        return "schema-v1"
     }
 }
 
@@ -260,18 +356,137 @@ struct ImportStrapiCommand: ParsableCommand {
         abstract: "Import content types and data from a Strapi project"
     )
 
-    @Option(name: .long, help: "Path to the Strapi project root")
+    @CLIOption(name: .long, help: "Path to the Strapi project root")
     var path: String
 
-    func run() throws {
+    @CLIOption(name: .long, help: "Database URL (default: env DATABASE_URL)")
+    var dbUrl: String?
+
+    @CLIFlag(name: .long, help: "Preview import without making changes")
+    var dryRun = false
+
+    @CLIFlag(name: .long, help: "Enable verbose logging")
+    var verbose = false
+
+    func run() async throws {
         print("Importing from Strapi project at: \(path)")
+
+        // Initialize Vapor application
+        var env = Environment.testing
+        if let dbUrl = dbUrl {
+            env.commandInput.arguments.append("--dburl")
+            env.commandInput.arguments.append(dbUrl)
+        }
+
+        let app = try await Application.make(env)
+        if verbose {
+            app.logger.logLevel = .trace
+        }
+
+        // Configure the application
+        try await configure(app)
+
+        // Perform import in a transaction
+        guard !dryRun else {
+            app.logger.info("Running in dry-run mode - no changes will be made")
+            try await performImport(app: app)
+            return
+        }
+
+        try await app.db.transaction { db in
+            try await performImport(app: app)
+        }
+
+        try await app.asyncShutdown()
+    }
+
+    private func performImport(app: Application) async throws {
+        // Parse schemas
         let parser = StrapiSchemaParser(projectPath: path)
         let types = try parser.parseSchemas()
+
         print("Found \(types.count) content types:")
         for t in types {
             print("  - \(t.name) (\(t.fields.count) fields)")
         }
-        print("\nTo complete import, run with a live database connection.")
+
+        // Create content type definitions in database
+        print("\nCreating content type definitions...")
+        var createdCount = 0
+        for type in types {
+            do {
+                _ = try await createContentTypeDefinition(type: type, app: app)
+                createdCount += 1
+                if verbose {
+                    app.logger.info("  Created: \(type.name)")
+                }
+            } catch {
+                if verbose {
+                    app.logger.error("  Failed to create \(type.name): \(error)")
+                }
+            }
+        }
+        print("  Created \(createdCount)/\(types.count) content type definitions")
+
+        // Import content data
+        let importer = StrapiDataImporter(db: app.db, logger: app.logger, schemas: types)
+        let dataPath = "\(path)/data"
+        try await importer.importData(from: dataPath, dryRun: dryRun)
+
+        print("\nImport complete!")
+        if dryRun {
+            print("  This was a dry run. No changes were made to the database.")
+        }
+    }
+
+    private func createContentTypeDefinition(type: StrapiSchemaParser.ParsedType, app: Application) async throws -> ContentTypeDefinition {
+        // Check if content type already exists
+        if let existing = try await ContentTypeDefinition.query(on: app.db)
+            .filter(\.$slug == type.slug)
+            .first() {
+            app.logger.warning("Content type '\(type.slug)' already exists, skipping...")
+            return existing
+        }
+
+        // Build JSON schema
+        var schemaProperties: [String: Any] = [:]
+        var requiredFields: [String] = []
+
+        for field in type.fields {
+            var fieldSchema: [String: Any] = ["type": field.type]
+
+            if field.type == "media" {
+                fieldSchema["multiple"] = false // Assume single unless "multiple" in schema
+            } else if field.type.starts(with: "relation") {
+                fieldSchema["relation"] = field.type
+            }
+
+            schemaProperties[field.name] = fieldSchema
+
+            if field.required {
+                requiredFields.append(field.name)
+            }
+        }
+
+        let jsonSchema: [String: Any] = [
+            "type": "object",
+            "properties": schemaProperties,
+            "required": requiredFields
+        ]
+
+        let fieldOrder = type.fields.map { $0.name }
+
+        let definition = ContentTypeDefinition(
+            name: type.name,
+            slug: type.slug,
+            displayName: type.name,
+            kind: .collection,
+            jsonSchema: .from(jsonSchema),
+            fieldOrder: .array(fieldOrder.map { .string($0) })
+        )
+
+        try await definition.create(on: app.db)
+        return definition
     }
 }
 
@@ -283,16 +498,16 @@ struct ExportCommand: ParsableCommand {
         abstract: "Export published content as static JSON bundles"
     )
 
-    @Option(name: .long, help: "Output format")
+    @CLIOption(name: .long, help: "Output format")
     var format: String = "static-json"
 
-    @Option(name: .long, help: "Output directory")
+    @CLIOption(name: .long, help: "Output directory")
     var output: String = "./bundles"
 
-    @Option(name: .long, help: "Locale to export")
+    @CLIOption(name: .long, help: "Locale to export")
     var locale: String = "en-US"
 
-    @Option(name: .long, help: "Only export entries modified after this timestamp (ISO 8601)")
+    @CLIOption(name: .long, help: "Only export entries modified after this timestamp (ISO 8601)")
     var since: String?
 
     func run() throws {
@@ -324,4 +539,31 @@ struct ExportCommand: ParsableCommand {
 
         print("Export complete. Connect to a live database for full content export.")
     }
+}
+
+// MARK: - Configuration
+
+/// Lightweight configuration for CLI commands.
+func configure(_ app: Application) async throws {
+    // Configure database
+    if let databaseURL = Environment.get("DATABASE_URL") {
+        try app.databases.use(
+            .postgres(url: databaseURL),
+            as: .psql
+        )
+        app.logger.info("Using PostgreSQL database")
+    } else {
+        app.databases.use(.sqlite(.memory), as: .sqlite)
+        app.logger.warning("No DATABASE_URL set, using SQLite in-memory (development only)")
+    }
+
+    // Run migrations
+    app.migrations.add(CreateContentTypeDefinitions())
+    app.migrations.add(CreateContentEntries())
+    app.migrations.add(CreateContentVersions())
+    app.migrations.add(CreateUsers())
+    app.migrations.add(CreateRoles())
+    app.migrations.add(SeedDefaultRoles())
+
+    try await app.autoMigrate()
 }

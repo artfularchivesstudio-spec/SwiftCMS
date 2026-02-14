@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "description": "SEO tools: sitemap.xml, robots.txt, meta tag management",
     "author": "SwiftCMS",
-    "dependencies": [],
+    "dependencies": ["analytics"],
     "hooks": ["afterSave"],
     "adminPages": [
         {"label": "SEO", "icon": "search", "path": "/admin/plugins/seo"}

@@ -1,0 +1,1139 @@
+ 
+SWIFTCMS 
+Agent Task Checklist 
+Step-by-Step Instructions for All 8 Agents × 4 Waves 
+Companion to: SwiftCMS Master Plan V2 
+ 
+READ THE GLOBAL RULES BEFORE WRITING ANY CODE 
+DO NOT EDIT FILES OUTSIDE YOUR ASSIGNED DIRECTORIES 
+ 
+February 2026  •  Version 2.0 
+ 
+Table of Contents 
+TOC \h \o &quot;1-3&quot; 
+ 
+ 
+Global Rules — Read This First 
+⚠ EVERY AGENT MUST READ THIS ENTIRE SECTION BEFORE WRITING A SINGLE LINE OF CODE. VIOLATIONS WILL CAUSE MERGE FAILURES. 
+Swift &amp; Toolchain 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Swift version 
+Swift 5.10 or later. Use async/await and Sendable. Do NOT use Swift 5.x callback patterns. 
+☐ 
+Vapor version 
+Vapor 4.x (latest). Import: .package(url: &quot;https://github.com/vapor/vapor.git&quot;, from: &quot;4.89.0&quot;) 
+☐ 
+Platform 
+Code MUST compile on macOS AND Linux (Ubuntu 24.04). Do NOT use Foundation APIs that are macOS-only (e.g., NSImage, URLSession.shared on Linux needs specific import). 
+☐ 
+Package manager 
+SPM only. No CocoaPods, Carthage, or .xcodeproj files. Agent 1 (W1) owns Package.swift. 
+☐ 
+Minimum deployment 
+.macOS(.v13) in Package.swift platforms array. 
+Coding Standards 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Types 
+UpperCamelCase. Example: ContentTypeDefinition, AuthProvider, CmsEvent. 
+☐ 
+Properties &amp; functions 
+lowerCamelCase. Example: contentType, jsonSchema, validateEntry(). 
+☐ 
+Files 
+Match the primary type. ContentTypeDefinition.swift contains ContentTypeDefinition. 
+☐ 
+Protocols 
+Descriptive nouns/adjectives. AuthProvider, FileStorageProvider. Do NOT suffix with Protocol. 
+☐ 
+DTOs 
+Suffix with DTO. Example: CreateContentEntryDTO. ALL DTOs live in Sources/CMSObjects/ only. 
+☐ 
+Access control 
+public for protocols, DTOs, API types. internal for implementation. private for helpers. 
+☐ 
+Async/await 
+Use async/await for ALL async ops. NEVER use EventLoopFuture or callbacks. 
+☐ 
+Error handling 
+Throw Abort(.notFound), Abort(.badRequest, reason: &quot;...&quot;). Use AbortError for HTTP errors. 
+☐ 
+Sendable 
+ALL types shared across concurrency boundaries MUST be Sendable. 
+☐ 
+Doc comments 
+/// on ALL public types, properties, methods. Include @param for non-obvious functions. 
+☐ 
+No force unwrap 
+NEVER use ! to unwrap. Use guard let, if let, or ?? with defaults. 
+☐ 
+No print() 
+Use req.logger.info() / .warning() / .error(). NEVER print() in production code. 
+☐ 
+Imports 
+One import per line, sorted alphabetically. Import only what you need. 
+Vapor &amp; Fluent Patterns 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Routes 
+Use RouteCollection protocol. Group related routes. Register in routes.swift. 
+☐ 
+Fluent models 
+@ID(key: .id) var id: UUID? for all PKs. Use @Field, @OptionalField, @Timestamp, @Parent. 
+☐ 
+Migrations 
+One per file. Name: Create{Table}.swift. Always implement prepare() AND revert() (DROP TABLE). 
+☐ 
+JSONB columns 
+Use .custom(&quot;JSONB&quot;) for PostgreSQL. Type as [String: AnyCodableValue] in models. 
+☐ 
+Database access 
+Use req.db in handlers. Use app.db ONLY in migrations, seeds, and boot() lifecycle. 
+☐ 
+Content conformance 
+Models/DTOs returned in responses MUST conform to Content (Vapor protocol). 
+☐ 
+Validation 
+Use Validatable protocol on request DTOs. Validate BEFORE database operations. 
+☐ 
+Middleware order 
+ErrorMiddleware &gt; Sessions &gt; CORS &gt; RateLimit &gt; Auth &gt; Custom. ORDER MATTERS. 
+Git &amp; Collaboration Rules 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Branch naming 
+wave-{N}/agent-{N}-{short-desc}. Example: wave-1/agent-3-database-models 
+☐ 
+Commit messages 
+[Agent-N] Module: Description. Example: [Agent-3] CMSSchema: Add content_entries migration 
+☐ 
+STAY IN YOUR LANE 
+ONLY create/edit files in your assigned directories. Need a change elsewhere? Write it in HANDOFF.md. 
+☐ 
+HANDOFF.md 
+For cross-module requests. Format: [Agent-N needs] What, Which file, Why. Agent 8 resolves these. 
+☐ 
+Package.swift 
+Agent 1 (W1) owns this. Need a new dependency? Add request to HANDOFF.md. 
+☐ 
+Tests 
+Write unit tests for your module in Tests/{Module}Tests/. Minimum: 1 test per public function. 
+Directory Ownership Map 
+This is the exact structure. Each row shows the directory and which agent owns it in which wave. 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Sources/App/ 
+Agent 1 (W1). Entry point, configure.swift, routes.swift. 
+☐ 
+Sources/CMSCore/ 
+Agent 2 (W1). Module system, hooks, Application extensions. 
+☐ 
+Sources/CMSSchema/ 
+Agent 3 (W1) creates models/migrations. Agent 1 (W2) adds Engine/. Grows per wave with subdirs. 
+☐ 
+Sources/CMSApi/REST/ 
+Agent 2 (W2). Dynamic content + content type REST controllers. 
+☐ 
+Sources/CMSApi/GraphQL/ 
+Agent 1 (W3). Graphiti schema + Pioneer integration. 
+☐ 
+Sources/CMSAdmin/ 
+Agent 3 (W2). Admin controllers. Resources/Views/admin/ for Leaf templates. 
+☐ 
+Sources/CMSAuth/ 
+Agent 4 (W1) creates protocol + Auth0. Agent 5 (W2) adds Firebase + Local. 
+☐ 
+Sources/CMSMedia/ 
+Agent 4 (W2). File storage, uploads, thumbnails. 
+☐ 
+Sources/CMSSearch/ 
+Agent 6 (W2). Meilisearch integration. 
+☐ 
+Sources/CMSEvents/ 
+Agent 6 (W1). EventBus, event types. Agent 7 (W2) extends with webhook dispatcher. 
+☐ 
+Sources/CMSJobs/ 
+Agent 7 (W2). Vapor Queues job definitions. 
+☐ 
+Sources/CMSObjects/ 
+Agent 5 (W1). ALL shared DTOs. Others import, NEVER modify. 
+☐ 
+Sources/CMSCLI/ 
+Agent 6 (W1) creates foundation. Agent 1 (W4) adds codegen. Agent 3 (W4) adds migration. 
+☐ 
+Modules/ 
+Agent 2 (W4). Plugin directory. 
+☐ 
+Tests/ 
+Agent 8 (all waves). Test infrastructure. Other agents add module-specific tests in their dirs. 
+☐ 
+Docker/CI files 
+Agent 7 (W1). Dockerfile, docker-compose.yml, k8s/, .github/workflows/. 
+☐ 
+HANDOFF.md 
+ANY agent can append. Agent 8 reads and resolves during integration. 
+ 
+Shared Type Contracts (All Agents Depend On These) 
+These types are defined by Agent 5 (W1) and Agent 2 (W1). Every agent codes against them. If you need a change, use HANDOFF.md. 
+Protocols 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+CmsModule 
+name: String, priority: Int, register(app:), boot(app:), shutdown(app:). Default empty impls via extension. 
+☐ 
+AuthProvider 
+name: String, configure(app:), verify(token:, on req:) -&gt; AuthenticatedUser, middleware() -&gt; AsyncMiddleware. 
+☐ 
+AuthenticatedUser 
+userId: String, email: String?, roles: [String], tenantId: String?. Conforms to Authenticatable, Sendable. 
+☐ 
+EventBus 
+publish(event:, context:), subscribe(type:, handler:) -&gt; UUID, unsubscribe(id:). 
+☐ 
+CmsEvent 
+static var eventName: String. Conforms to Codable, Sendable. 
+☐ 
+FileStorageProvider 
+upload(key:, data:, contentType:) -&gt; String, download(key:) -&gt; ByteBuffer, delete(key:), publicURL(key:) -&gt; String. 
+Key DTOs 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+AnyCodableValue 
+Enum: .string, .int, .double, .bool, .array([Self]), .dictionary([String:Self]), .null. Custom Codable. This represents ALL JSONB columns. 
+☐ 
+PaginationWrapper&lt;T: Content&gt; 
+data: [T], meta: PaginationMeta { page, perPage, total, totalPages }. Generic wrapper for all list endpoints. 
+☐ 
+ApiError 
+error: true, statusCode: Int, reason: String, details: [String:String]?. Conforms to AbortError + Content. 
+ 
+  WAVE 1 — Foundation &amp; Core Infrastructure (Weeks 1–3) 
+Goal: Server boots, connects PostgreSQL + Redis, authenticates Auth0 JWT, /healthz returns 200, module system + EventBus work. 
+AGENT 1: PROJECT BOOTSTRAP 
+YOU OWN: Sources/App/, Package.swift, docker-compose.yml, .env.example, Makefile   |   Master Plan Ref: Master Plan §3: Monorepo Structure 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Create Package.swift 
+Swift 5.10+, .macOS(.v13). ALL deps: vapor, fluent, fluent-postgres-driver, fluent-sqlite-driver, jwt-kit v5, leaf, redis, queues-redis-driver, Graphiti, Pioneer, kylef/JSONSchema.swift, soto-s3, swift-argument-parser, VaporHX. Define internal targets matching directory structure. 
+☐ 
+Create Sources/App/entrypoint.swift 
+@main struct entry point. Call configure(app) then try await app.execute(). 
+☐ 
+Create Sources/App/configure.swift 
+Load .env. Configure Fluent with PostgreSQL (DATABASE_URL) + SQLite fallback. Configure Redis (REDIS_URL). Configure Leaf. Configure sessions (Redis). Register migrations. Register routes. 
+☐ 
+Create Sources/App/routes.swift 
+GET /healthz -&gt; 200 OK. GET /ready -&gt; check DB + Redis, 200 or 503. GET /startup -&gt; 200. Group /api/v1/ and /admin/. 
+☐ 
+Create docker-compose.yml 
+postgres:16 (port 5432), redis:7 (port 6379), meilisearch:latest (port 7700). Volumes for persistence. 
+☐ 
+Create .env.example 
+DATABASE_URL, REDIS_URL, AUTH_PROVIDER=auth0, AUTH0_DOMAIN, AUTH0_AUDIENCE, MEILI_URL, MEILI_KEY, STORAGE_PROVIDER=local, S3_BUCKET, S3_REGION, APP_URL=http://localhost:8080 
+☐ 
+Create Makefile 
+Targets: build, run, test, docker-up, docker-down, migrate, seed, clean. 
+☐ 
+Verify swift build succeeds 
+Zero errors. All targets compile (even with empty placeholder files). 
+ 
+AGENT 2: CORE MODULE SYSTEM 
+YOU OWN: Sources/CMSCore/   |   Master Plan Ref: Master Plan §3 + §10: Plugin API 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+CmsModule.swift 
+Protocol: name, priority (default 0), register(app:), boot(app:), shutdown(app:). Default empty impls via extension. 
+☐ 
+ModuleManager.swift 
+Holds [CmsModule]. Methods: register(_:), bootAll(app:) sorts by priority then calls register on all then boot on all, shutdownAll(app:). Store on Application via StorageKey. 
+☐ 
+HookRegistry.swift 
+Generic: register&lt;T&gt;(hookName:, handler:), invoke&lt;T&gt;(hookName:, args:). Calls all handlers for that hook in registration order. 
+☐ 
+Application+CMS.swift 
+Extensions: app.cms.modules, app.cms.hooks, app.cms.eventBus. Use Application.Storage with StorageKey pattern. 
+☐ 
+Request+CMS.swift 
+Extensions: req.cms.eventBus, req.cms.hooks. Delegate to Application instances. 
+☐ 
+Tests 
+Tests/CMSCoreTests/: TestModule, test registration, boot order, hook invocation with typed args. 
+ 
+AGENT 3: DATABASE MODELS &amp; MIGRATIONS 
+YOU OWN: Sources/CMSSchema/Models/, Sources/CMSSchema/Migrations/   |   Master Plan Ref: Master Plan §11: Database Design 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+User.swift 
+id (UUID), email (unique), passwordHash (optional), displayName, roleId (@Parent), authProvider, externalId (optional), tenantId (optional), createdAt, updatedAt. 
+☐ 
+Role.swift 
+id, name, slug (unique), description (optional), isSystem (Bool, default false). 
+☐ 
+Permission.swift 
+id, roleId (@Parent), contentTypeSlug, action (create|read|update|delete|publish|configure). Composite unique. 
+☐ 
+ApiKey.swift 
+id, name, keyHash, permissions (JSONB), lastUsedAt (optional), expiresAt (optional), tenantId, createdAt. 
+☐ 
+MediaFile.swift 
+id, filename, mimeType, sizeBytes, storagePath, provider (local|s3), altText (optional), metadata (JSONB), tenantId, createdAt. 
+☐ 
+Webhook.swift 
+id, name, url, events (JSONB array), headers (JSONB optional), secret, enabled, retryCount (default 5), tenantId, createdAt. 
+☐ 
+WebhookDelivery.swift 
+id, webhookId (@Parent), event, payload (JSONB), idempotencyKey (unique), responseStatus (optional), attempts (default 0), deliveredAt (optional), createdAt. 
+☐ 
+DeadLetterEntry.swift 
+id, jobType, payload (JSONB), failureReason, retryCount, firstFailedAt, lastFailedAt. 
+☐ 
+AuditLog.swift 
+id, entryId (optional), contentType (optional), action, userId (optional), beforeData (JSONB optional), afterData (JSONB optional), tenantId, createdAt. 
+☐ 
+ContentTypeDefinition.swift 
+id, name, slug (unique), displayName, description (optional), kind (collection|single), jsonSchema (JSONB), fieldOrder (JSONB), settings (JSONB optional), tenantId, createdAt, updatedAt. 
+☐ 
+ContentEntry.swift 
+id, contentType (String), data (JSONB), status (draft|review|published|archived), locale (optional), publishAt (optional), unpublishAt (optional), createdBy, updatedBy, tenantId, createdAt, updatedAt, publishedAt (optional), deletedAt (optional soft delete). 
+☐ 
+ContentVersion.swift 
+id, entryId (@Parent), version (Int), data (JSONB), changedBy (optional), createdAt. 
+☐ 
+ALL migrations 
+One per table. Name: Create{Table}.swift. Both prepare() and revert(). GIN index on content_entries.data, B-tree on (tenant_id, content_type). Guard for SQLite (skip GIN). 
+☐ 
+SeedDefaultRoles.swift 
+Creates: Super Admin (isSystem:true), Editor, Author, Public. Default admin user from ADMIN_EMAIL/ADMIN_PASSWORD env vars. 
+☐ 
+Tests 
+Tests/CMSSchemaTests/: Model creation for each type. Migration up/down on SQLite. 
+ 
+AGENT 4: AUTH0 PROVIDER 
+YOU OWN: Sources/CMSAuth/   |   Master Plan Ref: Master Plan §6: Authentication Architecture 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+AuthProvider.swift protocol 
+name, configure(app:), verify(token:, on req:) -&gt; AuthenticatedUser, middleware() -&gt; AsyncMiddleware. SHARED protocol. 
+☐ 
+AuthenticatedUser.swift 
+Protocol + concrete CmsUser struct. userId, email, roles, tenantId. Conforms to Authenticatable, Sendable. 
+☐ 
+Auth0Provider.swift 
+configure: fetch JWKS from https://{AUTH0_DOMAIN}/.well-known/jwks.json, add to app.jwt.keys. verify: decode Auth0TokenPayload, check exp. Middleware: JWTBearerAuthenticator. 
+☐ 
+Auth0TokenPayload.swift 
+JWTPayload: iss, sub, exp, aud, permissions ([String] optional). verify() checks exp. 
+☐ 
+FirebaseProvider.swift STUB 
+Throw Abort(.notImplemented, reason: &quot;Coming in Wave 2&quot;). Agent 5 (W2) fills in. 
+☐ 
+LocalJWTProvider.swift STUB 
+Same stub. Wave 2. 
+☐ 
+RBACMiddleware.swift 
+Get CmsUser from req.auth. Extract contentType + action from route. Query permissions table. Abort(.forbidden) if no match. Skip for Super Admin. 
+☐ 
+SessionAuthMiddleware.swift 
+For admin. SessionsMiddleware + ModelSessionAuthenticatable. Redirect /admin/login if no session. 
+☐ 
+ApiKeyMiddleware.swift 
+Extract from X-API-Key header. Hash + lookup. Check expiry. Map to synthetic CmsUser. 
+☐ 
+AuthProviderFactory.swift 
+Read AUTH_PROVIDER env. Return correct provider instance. 
+☐ 
+Tests 
+Token payload decode. RBAC allow/deny. API key validation. 
+ 
+AGENT 5: SHARED DTOS &amp; OBJECTS 
+YOU OWN: Sources/CMSObjects/   |   Master Plan Ref: Master Plan §3: CMSObjects 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+AnyCodableValue.swift 
+Enum: .string, .int, .double, .bool, .array([Self]), .dictionary([String:Self]), .null. Custom Codable encode/decode. Sendable, Equatable, Content. THIS IS THE MOST CRITICAL TYPE. 
+☐ 
+ContentTypeDefinitionDTO.swift 
+CreateContentTypeDTO (name, slug, displayName, kind, jsonSchema, fieldOrder, settings), UpdateContentTypeDTO (all optional), ContentTypeResponseDTO (all + id + timestamps). All Content. 
+☐ 
+ContentEntryDTO.swift 
+CreateContentEntryDTO (data, status?, locale?, publishAt?), UpdateContentEntryDTO (all optional), ContentEntryResponseDTO (all + id + contentType + timestamps). All Content. 
+☐ 
+PaginationWrapper.swift 
+Generic PaginationWrapper&lt;T: Content&gt;: Content { data: [T], meta: PaginationMeta }. PaginationMeta: page, perPage, total, totalPages. 
+☐ 
+ApiError.swift 
+error: true, statusCode, reason, details. Conforms to AbortError + Content. 
+☐ 
+UserDTO.swift 
+UserResponseDTO (id, email, displayName, roleName, authProvider, createdAt). Create + Update variants. 
+☐ 
+RoleDTO.swift + PermissionDTO.swift 
+RoleResponseDTO (id, name, slug, description, isSystem, permissions). PermissionDTO (contentTypeSlug, action). 
+☐ 
+MediaFileDTO.swift 
+MediaResponseDTO (id, filename, mimeType, sizeBytes, url, altText, metadata, createdAt). 
+☐ 
+WebhookDTO.swift 
+WebhookResponseDTO + CreateWebhookDTO + WebhookDeliveryDTO. 
+☐ 
+Tests 
+AnyCodableValue roundtrip encode/decode for every case. Nested dict/array. PaginationWrapper serialization. 
+ 
+AGENT 6: EVENTBUS &amp; CLI FOUNDATION 
+YOU OWN: Sources/CMSEvents/, Sources/CMSCLI/ (foundation)   |   Master Plan Ref: Master Plan §4: Event &amp; Webhook Architecture 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+CmsEvent.swift 
+protocol CmsEvent: Codable, Sendable { static var eventName: String { get } } 
+☐ 
+CmsContext.swift 
+Struct: db (Database), logger (Logger), userId (String?), tenantId (String?). 
+☐ 
+EventBus.swift protocol 
+publish(event:, context:), subscribe(type:, handler:) -&gt; UUID, unsubscribe(id:). 
+☐ 
+InProcessEventBus.swift 
+Actor-based. Store handlers as [String: [(UUID, handler)]]. Publish calls all handlers for event name. Thread-safe via actor. 
+☐ 
+RedisStreamsEventBus.swift STUB 
+publish() XADDs to Redis Stream cms:{eventName}. Subscribe/processing stubbed with TODOs for Wave 2. 
+☐ 
+Core event types 
+ContentCreatedEvent, ContentUpdatedEvent, ContentDeletedEvent, ContentPublishedEvent, ContentStateChangedEvent, SchemaChangedEvent, UserLoginEvent. Each conforms to CmsEvent. 
+☐ 
+CMSCLI main.swift 
+ArgumentParser root command. Subcommands: ServeCommand, MigrateCommand, SeedCommand. 
+☐ 
+Tests 
+InProcessEventBus publish/subscribe roundtrip. Multiple subscribers receive same event. Unsubscribe stops delivery. 
+ 
+AGENT 7: DOCKER &amp; CI/CD 
+YOU OWN: Dockerfile, k8s/, .github/workflows/   |   Master Plan Ref: Master Plan §3: Infrastructure Layer 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Dockerfile 
+Multi-stage. Build: FROM swift:5.10-jammy, swift build -c release. Runtime: FROM ubuntu:24.04, install libcurl4 libxml2 libz, copy binary, EXPOSE 8080. Target ~200MB. 
+☐ 
+.dockerignore 
+.build/, .git/, *.xcodeproj, DerivedData/, Tests/, *.md, .env 
+☐ 
+docker-compose.yml (app service) 
+Add app service building from Dockerfile, depends_on postgres+redis, port 8080, loads .env, healthcheck on /healthz. 
+☐ 
+k8s/deployment.yaml 
+2 replicas, port 8080, livenessProbe /healthz, readinessProbe /ready, startupProbe /startup. Resources: 256Mi/250m request, 512Mi/500m limit. 
+☐ 
+k8s/service.yaml + hpa.yaml 
+ClusterIP port 80-&gt;8080. HPA 70% CPU, min 2, max 10. 
+☐ 
+k8s/configmap.yaml + secret.yaml 
+Non-secret config vs base64 secrets template. 
+☐ 
+.github/workflows/ci.yml 
+On push/PR. ubuntu-latest, setup Swift 5.10, start PostgreSQL+Redis services, swift build, swift test. Cache .build. 
+☐ 
+.github/workflows/docker.yml 
+On tag v*. Build + push to ghcr.io. 
+☐ 
+Health check test 
+Tests/IntegrationTests/HealthCheckTests.swift: XCTVapor boot, GET /healthz 200, /ready 200, /startup 200. 
+ 
+AGENT 8: INTEGRATION &amp; TESTING 
+YOU OWN: Tests/, HANDOFF.md resolution, final merge   |   Master Plan Ref: Master Plan §13: Wave 1 
+⚠ YOU ARE LAST. Wait for all 7 agents to complete their branches. 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Test infrastructure 
+Tests/AppTests/configure.swift: XCTApplicationTester with SQLite in-memory. Register + apply all migrations. 
+☐ 
+Test helpers 
+Tests/Helpers/TestFixtures.swift: Factory methods for User, Role, Permission, ContentType, ContentEntry with defaults. 
+☐ 
+Read HANDOFF.md 
+Process ALL cross-module requests. Make edits. Document what changed. 
+☐ 
+Merge order 
+1 (bootstrap) &gt; 5 (DTOs) &gt; 2 (core) &gt; 6 (events) &gt; 3 (models) &gt; 4 (auth) &gt; 7 (devops). This minimizes conflicts. 
+☐ 
+Fix compilation 
+swift build after merge. Fix import errors, missing types, protocol conformance. 
+☐ 
+Run full tests 
+swift test must pass with zero failures. 
+☐ 
+Verify Docker 
+docker compose build + up. curl /healthz returns 200. 
+☐ 
+Smoke test 
+Tests/IntegrationTests/SmokeTests.swift: boot, /healthz 200, module registered, EventBus pub/sub works. 
+☐ 
+Tag 
+git tag wave-1-complete on merged main. 
+EXIT CRITERIA: Server boots → PostgreSQL + Redis → Auth0 JWT works → /healthz 200 → module system → EventBus pub/sub → Docker builds → CI green. 
+ 
+  WAVE 2 — Content Engine &amp; API Layer (Weeks 4–6) 
+Goal: Functional headless CMS. Define content types, create entries via REST, admin panel, media upload, search, webhooks. 
+AGENT 1: CONTENT TYPE ENGINE 
+YOU OWN: Sources/CMSSchema/Engine/   |   Master Plan Ref: Master Plan §3: Core Engine Layer 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+FieldTypeRegistry.swift 
+Map field type strings to JSON Schema fragments. 14 types: shortText, longText, richText, integer, decimal, boolean, dateTime, email, enumeration, json, media, relationHasOne, relationHasMany, component. 
+☐ 
+SchemaGenerator.swift 
+Takes field definitions (name, type, required, unique, default, enum values) -&gt; complete JSON Schema (type:object, properties, required). Stored in content_type_definitions.json_schema. 
+☐ 
+SchemaValidator.swift 
+Wraps kylef/JSONSchema.swift. validate(data, against schema) throws [ValidationError] with field paths. 
+☐ 
+ContentTypeService.swift 
+CRUD for type definitions. Create: validate slug unique, generate schema, save, fire SchemaChangedEvent. Delete: check no entries (or force). 
+☐ 
+ContentEntryService.swift 
+CRUD for entries. Create: lookup type, validate against schema, set status=draft, save, fire ContentCreatedEvent. Update: validate, save, create version, fire event. Delete: soft delete. 
+☐ 
+RelationResolver.swift 
+Resolve relation fields on ?populate= param. hasOne: UUID -&gt; nested object. hasMany: UUID[] -&gt; nested array. Depth limit: 2. 
+☐ 
+Tests 
+SchemaGenerator validity. Validator catches bad data. ContentTypeService CRUD with events. RelationResolver. 
+ 
+AGENT 2: REST API CONTROLLERS 
+YOU OWN: Sources/CMSApi/REST/   |   Master Plan Ref: Master Plan §3: API Layer 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+DynamicContentController.swift 
+RouteCollection at /api/v1/:contentType. GET / (list), POST / (create), GET /:id (read), PUT /:id (update), DELETE /:id (delete). :contentType resolves against content_type_definitions. 
+☐ 
+List endpoint 
+Params: page, perPage (max 100), sort (field:asc|desc), filter (field[eq|contains|gt|lt]=val), fields (sparse), populate (relations), status. Return PaginationWrapper. 
+☐ 
+Create endpoint 
+Decode CreateContentEntryDTO. Lookup type. Validate data vs JSON Schema. Set createdBy. Save. Fire event. Return 201. 
+☐ 
+Read endpoint 
+Fetch by UUID. Support ?populate=. Return DTO or 404. 
+☐ 
+Update endpoint 
+Validate. Set updatedBy. Save. Create version. Fire event. Return DTO. 
+☐ 
+Delete endpoint 
+Soft delete (set deletedAt). Fire event. Return 204. 
+☐ 
+ContentTypeController.swift 
+At /api/v1/content-types. CRUD for type definitions. Protected by configure permission. 
+☐ 
+Auth middleware 
+Public: GET if Public role has read. Protected: POST/PUT/DELETE require auth + permissions. 
+☐ 
+Tests 
+E2E: create type, create 3 entries, list with pagination, filter, sort, update, soft delete. Auth 401/403. 
+ 
+AGENT 3: ADMIN PANEL CORE 
+YOU OWN: Sources/CMSAdmin/, Resources/Views/admin/   |   Master Plan Ref: Master Plan Admin Panel Design 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+base.leaf 
+HTML5 layout. Tailwind (CDN), DaisyUI (CDN), HTMX (CDN), Alpine.js (CDN). Sidebar: Dashboard, Content Types, dynamic per-type links, Media, Users, Webhooks, Settings. Top bar: user + logout. 
+☐ 
+AdminController.swift 
+RouteCollection at /admin. All routes SessionAuthMiddleware protected. 
+☐ 
+Dashboard 
+Cards: content type count, total entries, recent entries (last 10), system health. 
+☐ 
+Content type builder 
+builder.leaf: Name, slug (auto from name), kind dropdown. Dynamic field list (Alpine.js x-data). Add/remove/reorder fields. SortableJS drag-drop. HTMX submit to POST /api/v1/content-types. 
+☐ 
+Content list 
+list.leaf: Parameterized by :contentType. Columns from field_order. Pagination (HTMX). Search. Status badges. Create button. 
+☐ 
+Content edit 
+edit.leaf: Dynamic form from JSON Schema. Inputs by type. TipTap for richText. HTMX submit. 
+☐ 
+Login page 
+login.leaf: Email + password. POST /admin/login. Success: redirect /admin. Failure: error msg. 
+☐ 
+VaporHX config 
+Auto-detect HX-Request. HTMX requests: return #content partial. Full: return base.leaf. 
+☐ 
+Tests 
+Each admin page 200 with session, 302 without. 
+ 
+AGENT 4: MEDIA LIBRARY 
+YOU OWN: Sources/CMSMedia/   |   Master Plan Ref: Master Plan §3: CMSMedia 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+FileStorageProvider.swift 
+Protocol: upload(key:,data:,contentType:)-&gt;URL, download(key:)-&gt;ByteBuffer, delete(key:), publicURL(key:)-&gt;String. 
+☐ 
+LocalStorageProvider.swift 
+Store in Public/uploads/. publicURL: /uploads/{key}. Create dirs as needed. 
+☐ 
+S3StorageProvider.swift 
+Soto S3Client. putObject, getObject, deleteObject. Presigned URLs (1hr expiry). Read S3_* env vars. 
+☐ 
+MediaService.swift 
+Validate type (allowlist: jpg,png,gif,webp,svg,pdf,mp4,mp3,doc,docx), validate size (max 50MB default), generate key (uploads/{year}/{month}/{uuid}-{filename}), upload, create record, return DTO. 
+☐ 
+MediaController.swift 
+At /api/v1/media. POST / (multipart), GET / (list+filter), GET /:id, DELETE /:id. Auth protected. 
+☐ 
+Thumbnail job 
+ThumbnailJob: for images, generate 300px thumbnail via ImageMagick CLI. Store at uploads/thumbs/. Update metadata. 
+☐ 
+Admin media page 
+library.leaf: Grid with thumbnails. Upload modal (HTMX drag-drop). Search. Filter by type. 
+☐ 
+Tests 
+LocalStorage roundtrip. Validation (reject .exe, accept .png). Size limit. 
+ 
+AGENT 5: FIREBASE &amp; LOCAL AUTH 
+YOU OWN: Sources/CMSAuth/Firebase/, Sources/CMSAuth/Local/   |   Master Plan Ref: Master Plan §6: Auth Providers 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+FirebaseProvider.swift 
+Configure: fetch Google X.509 certs, parse Cache-Control for refresh interval, schedule periodic refresh. Verify: validate JWT sig, check iss/aud/exp. Map customClaims.roles to CmsUser.roles. 
+☐ 
+LocalJWTProvider.swift 
+Configure: HMAC-SHA256 from JWT_SECRET env. Login endpoint POST /api/v1/auth/login: email+password, verify bcrypt, issue JWT (24h). Refresh endpoint. 
+☐ 
+User management admin 
+users/list.leaf: table (email, role, provider, last login). users/edit.leaf: edit displayName, role dropdown, disable/enable. 
+☐ 
+Admin login controller 
+POST /admin/login: for local auth verify DB. For Auth0/Firebase redirect to hosted login. Create session on success. 
+☐ 
+Tests 
+LocalJWT login (correct -&gt; token, wrong -&gt; 401). Token verify. Firebase key caching (mock HTTP). 
+ 
+AGENT 6: SEARCH INTEGRATION 
+YOU OWN: Sources/CMSSearch/   |   Master Plan Ref: Master Plan §3: CMSSearch 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+MeilisearchService.swift 
+Wrap meilisearch-swift. Configure from MEILI_URL + MEILI_KEY. Methods: createIndex, updateIndex, deleteIndex, indexEntry, removeEntry, search. 
+☐ 
+Index management 
+Subscribe to SchemaChangedEvent: created -&gt; create index + configure searchable fields. Updated -&gt; update attributes. Deleted -&gt; delete index. 
+☐ 
+Content sync 
+Subscribe to ContentCreated/Updated/Deleted. On create/update: flatten JSONB, index with id/contentType/status/locale. On delete: remove. 
+☐ 
+SearchController.swift 
+At /api/v1/search. GET ?q=query&amp;type=articles&amp;page=1&amp;perPage=20. Returns PaginationWrapper. 
+☐ 
+Admin search bar 
+HTMX input in base.leaf header. Queries /admin/search?q=. Returns dropdown of results linking to edit pages. 
+☐ 
+Tests 
+Index CRUD (needs Meilisearch from Docker). Search returns results. Hooks fire on entry creation. 
+ 
+AGENT 7: WEBHOOKS &amp; BACKGROUND JOBS 
+YOU OWN: Sources/CMSWebhooks/, Sources/CMSJobs/   |   Master Plan Ref: Master Plan §4: Event &amp; Webhook Architecture 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Vapor Queues config 
+Add to HANDOFF.md for Agent 8: app.queues.use(.redis(url:)). Register job types. Start workers. 
+☐ 
+WebhookDispatcher.swift 
+Subscribe to ALL CmsEvents. Match events to webhooks (where events array contains eventName AND enabled). Generate idempotency key. Check dedup (60s). Create WebhookDelivery. Enqueue job. 
+☐ 
+WebhookDeliveryJob.swift 
+QueueJob. Fetch delivery+webhook. JSON payload (event, timestamp, data). HMAC-SHA256 sign with secret -&gt; X-SwiftCMS-Signature. POST to URL (10s timeout). Success: update status. Failure: increment attempts, re-enqueue with delay (30s * 2^attempt), or DLQ after max retries. 
+☐ 
+ScheduledPublishJob.swift 
+Runs every 60s. Query draft entries with publish_at &lt;= now. Transition to published. Fire ContentPublishedEvent. Also check unpublish_at. 
+☐ 
+SearchReindexJob.swift 
+Receives contentTypeSlug. Batch-index ALL entries for that type into Meilisearch. 
+☐ 
+Webhook admin pages 
+list.leaf, edit.leaf (URL, event checkboxes, headers, secret), deliveries.leaf (log with retry button). 
+☐ 
+DLQ admin page 
+system/dlq.leaf: dead letter entries, retry/purge buttons. 
+☐ 
+Tests 
+Dispatcher matches events to webhooks. Idempotency dedup. Retry logic. ScheduledPublishJob transitions. 
+ 
+AGENT 8: INTEGRATION &amp; TESTING 
+YOU OWN: Tests/, final merge   |   Master Plan Ref: Master Plan §13: Wave 2 
+⚠ Merge order: 1 (engine) &gt; 6 (search) &gt; 4 (media) &gt; 7 (webhooks) &gt; 2 (REST) &gt; 3 (admin) &gt; 5 (auth). Fix after each. 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+HANDOFF.md 
+Resolve all. Especially: Queues config in configure.swift, route registration, migration ordering. 
+☐ 
+Content type e2e test 
+Create Article type (title string required, body richText, date dateTime). Create 3 entries. List with pagination. Filter by title. Validate rejects missing title. 
+☐ 
+Media e2e test 
+Upload PNG multipart. Verify record. Verify file at URL. Delete -&gt; 404. 
+☐ 
+Webhook e2e test 
+Create webhook for content.created. Create entry. Verify WebhookDelivery record. 
+☐ 
+Admin smoke tests 
+GET dashboard, content-types, media, webhooks -&gt; 200 with session, 302 without. 
+☐ 
+Performance baseline 
+Create 10K entries. Measure list endpoint (target &lt;200ms). Document. 
+☐ 
+Docker full stack 
+docker compose up. Create type via admin. Create entry via REST. Search finds it. Webhook fires. 
+☐ 
+Tag 
+wave-2-complete. 
+EXIT CRITERIA: Create Blog Post type via admin → 3 entries via REST → pagination → image upload → search works → webhook fires → DLQ captures failures → Docker full stack. 
+ 
+  WAVE 3 — Production Readiness (Weeks 7–10) 
+Goal: Production-grade with GraphQL, content lifecycle, relations, i18n, caching, security, observability. 
+AGENT 1: GRAPHQL API 
+YOU OWN: Sources/CMSApi/GraphQL/   |   Master Plan Ref: Master Plan §3: API Layer + GraphQL Layer 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Schema auto-generation 
+Read all content_type_definitions. For each: Graphiti Type with fields from JSON Schema. String-&gt;GraphQL String, integer-&gt;Int, boolean-&gt;Boolean. Relations-&gt;nested types. 
+☐ 
+Pioneer integration 
+Register at /graphql (HTTP) and /graphql/ws (WebSocket subscriptions). GraphiQL IDE at /graphql/ide. Pass auth context from Vapor request to resolver context. 
+☐ 
+Query resolvers 
+Per type: single by ID, list with pagination/filter args. Respect RBAC permissions. 
+☐ 
+Mutation resolvers 
+create, update, delete. Validate via SchemaValidator. Fire events. 
+☐ 
+Subscription resolvers 
+onChange per content type. Push via EventBus subscription forwarded to WebSocket. 
+☐ 
+Schema regeneration hook 
+Subscribe to SchemaChangedEvent. Rebuild + hot-swap Graphiti schema in Pioneer. 
+☐ 
+Tests 
+Create type, query via GraphQL, create via mutation, verify subscription fires. 
+ 
+AGENT 2: CONTENT LIFECYCLE (DRAFT/PUBLISH) 
+YOU OWN: Sources/CMSSchema/Workflow/   |   Master Plan Ref: Master Plan §5: Content Lifecycle 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+ContentStateMachine.swift 
+Enum: draft, review, published, archived, deleted. allowedTransitions(from:) returns valid targets. Enforce on every status change. 
+☐ 
+Status transitions in service 
+Validate transition allowed. Set publishedAt on publish. Fire ContentStateChangedEvent (fromState, toState). 
+☐ 
+Preview endpoint 
+GET /api/v1/:contentType/:id/preview?token=... Returns draft without publish. Token: short-lived JWT (1hr) from POST .../preview-token. 
+☐ 
+Admin status controls 
+Publish/Unpublish/Archive buttons per current state. Scheduled publish date picker. Transition history. 
+☐ 
+Tests 
+All valid transitions succeed. Invalid -&gt; 422. ScheduledPublishJob works. Preview token access. 
+ 
+AGENT 3: CONTENT RELATIONS 
+YOU OWN: Sources/CMSSchema/Relations/   |   Master Plan Ref: Master Plan Relations 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+hasOne 
+UUID in JSONB. On ?populate=field, resolve to nested ContentEntryResponseDTO. 
+☐ 
+hasMany 
+UUID array in JSONB. Resolve all to nested array. 
+☐ 
+Circular detection 
+Track visited IDs during resolution. Cycle detected -&gt; return UUID not nested. Max depth: 2. 
+☐ 
+Admin relation picker 
+HTMX modal: search target type entries, select one/many. Show as removable chips. 
+☐ 
+Tests 
+Author + Article types. Article has author (hasOne). Create both, populate works. Circular stops. 
+ 
+AGENT 4: INTERNATIONALIZATION 
+YOU OWN: Sources/CMSSchema/I18n/   |   Master Plan Ref: Master Plan i18n 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Locale support 
+Entries use locale column. API ?locale=en-US. Default locale from settings if unspecified. 
+☐ 
+Fallback chain 
+Entry not found in locale -&gt; fall back to default. Configurable chains (en-GB -&gt; en-US -&gt; en). 
+☐ 
+Translation admin 
+Side-by-side: original left, target right. Copy-from-original button. Locale switcher in header. 
+☐ 
+Locale management 
+settings/locales.leaf: Add/remove locales, set default, configure fallbacks. 
+☐ 
+Tests 
+Create en-US. Request fr-FR -&gt; falls back. Create fr-FR translation -&gt; returns French. 
+ 
+AGENT 5: CACHING &amp; PERFORMANCE 
+YOU OWN: Sources/App/Middleware/Cache/   |   Master Plan Ref: Master Plan §8: Performance 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+ResponseCacheMiddleware 
+GET content endpoints: cache key from URL+params+locale. Redis check. Hit: return + Age header. Miss: handler + cache with TTL (5min list, 15min single). 
+☐ 
+Invalidation via hooks 
+Subscribe to content mutation events. Invalidate all keys matching content type slug via Redis SCAN. 
+☐ 
+ETag support 
+MD5 hash of response body. If-None-Match -&gt; 304 Not Modified if match. 
+☐ 
+Pool tuning 
+DB_POOL_SIZE (default 10) and REDIS_POOL_SIZE (default 5) from env vars. 
+☐ 
+Tests 
+Cache hit faster. Mutation invalidates. ETag 304. 
+ 
+AGENT 6: SECURITY &amp; OBSERVABILITY 
+YOU OWN: Sources/App/Middleware/Security/   |   Master Plan Ref: Master Plan §3: Infrastructure 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+CORS middleware 
+ALLOWED_ORIGINS env (comma-sep). Allow GET/POST/PUT/DELETE/OPTIONS. Headers: Authorization, Content-Type, X-API-Key. 
+☐ 
+Security headers 
+X-Content-Type-Options: nosniff, X-Frame-Options: DENY (API) / SAMEORIGIN (admin), HSTS max-age=31536000, Referrer-Policy: strict-origin-when-cross-origin. 
+☐ 
+Rate limiting 
+Gatekeeper + Redis. Public: 60/min. Authenticated: 300/min. Admin: unlimited. 429 + Retry-After. 
+☐ 
+Request ID 
+UUID per request. X-Request-Id header. Logger metadata. 
+☐ 
+swift-otel 
+OpenTelemetry OTLP/gRPC. Request duration histogram, count counter, error counter. Trace context on outgoing HTTP. 
+☐ 
+Audit log writes 
+Subscribe to mutation events. AuditLog entry: entryId, action, userId, before/after data, tenantId. 
+☐ 
+Tests 
+CORS headers present. Rate limit triggers. Request ID in response. Audit log created. 
+ 
+AGENT 7: ADMIN PANEL POLISH 
+YOU OWN: Sources/CMSAdmin/ (refinements)   |   Master Plan Ref: Master Plan Admin Design 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Dark mode 
+DaisyUI theme toggle (light/dark). localStorage preference. data-theme attribute. 
+☐ 
+Responsive 
+Sidebar -&gt; hamburger on mobile. Tables scroll horizontal. Forms stack vertical. 
+☐ 
+Bulk operations 
+Checkbox column in lists. Select all in header. Bulk action bar: Publish/Delete Selected. HTMX submit. 
+☐ 
+Import/export 
+Export type definition as JSON. Import JSON to create type. Validate on import. 
+☐ 
+Activity dashboard 
+Recent Activity feed: last 20 audit log entries with user, action, type, timestamp. 
+☐ 
+Role management 
+roles/ pages. Permission matrix: types as rows, actions as columns, checkboxes. 
+☐ 
+Tests 
+Smoke tests for all new pages. Bulk delete creates audit entries. 
+ 
+AGENT 8: LOAD TESTING &amp; INTEGRATION 
+YOU OWN: Tests/, Benchmarks/   |   Master Plan Ref: Master Plan §8: Performance Targets 
+⚠ Merge order: 5 (cache) &gt; 6 (security) &gt; 4 (i18n) &gt; 3 (relations) &gt; 2 (lifecycle) &gt; 1 (GraphQL) &gt; 7 (admin). 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+HANDOFF + merge 
+Process all requests. Merge in order above. Fix integration. 
+☐ 
+Load test suite 
+wrk/k6: GET /api/v1/articles cached 1000req/s 30s. Uncached 10K entries. 50 concurrent writers. Document p50/p95/p99/errors. 
+☐ 
+RBAC matrix test 
+All 4 roles x all content types x all actions. Verify allow/deny matches expected permissions. 
+☐ 
+GraphQL integration 
+Nested relation queries. Mutation with validation. Subscription receives events. 
+☐ 
+Migration path 
+Empty DB -&gt; all migrations -&gt; seed -&gt; all endpoints work. 
+☐ 
+Security scan 
+Dependency audit. Verify security headers. Rate limiting functional. 
+☐ 
+Tag 
+wave-3-complete. 
+EXIT CRITERIA: GraphQL + subscriptions → draft/published + scheduled → relations + populate → i18n + fallback → cached &lt;50ms p99 → rate limiting → 1000 req/sec → audit log. 
+ 
+  WAVE 4 — Ecosystem &amp; Developer Experience (Weeks 11–14) 
+Goal: Developer platform. SDK gen, plugins, Strapi migration, versioning, WebSocket, static export, docs. 
+AGENT 1: CLIENT SDK GENERATOR 
+YOU OWN: Sources/CMSCLI/Codegen/   |   Master Plan Ref: Master Plan §9: Apple Differentiators 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+SwiftSDKGenerator.swift 
+Read content_type_definitions. Per type: Codable struct (string-&gt;String, int-&gt;Int, bool-&gt;Bool, dateTime-&gt;Date, relation-&gt;UUID?). Generated client class with async list/get/create/update/delete. 
+☐ 
+TypeScriptGenerator.swift 
+Same logic -&gt; .d.ts interface per type. 
+☐ 
+Package.swift generator 
+Generate complete SPM package in ClientSDK/ with Package.swift, Sources, README. 
+☐ 
+Schema hash versioning 
+SHA256 of all schemas combined -&gt; static let schemaVersion. Client staleness detection. 
+☐ 
+CLI commands 
+&apos;cms generate-sdk swift --output ./ClientSDK&apos; + &apos;cms generate-sdk typescript --output ./client-types&apos;. 
+☐ 
+Tests 
+Create type with 5 field types. Generate SDK. Compile generated package. Types match schema. 
+ 
+AGENT 2: PLUGIN MARKETPLACE 
+YOU OWN: Modules/, Sources/CMSCore/Plugins/   |   Master Plan Ref: Master Plan §10: Plugin API 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Plugin manifest 
+plugin.json: name, version, description, author, dependencies, hooks, adminPages, fieldTypes. 
+☐ 
+Plugin discovery 
+On boot: scan Modules/ for plugin.json. Validate. Load as CMSModule. Respect dependency order. 
+☐ 
+Plugin admin page 
+plugins/list.leaf: installed plugins, version, active/inactive toggle. 
+☐ 
+SEO example plugin 
+Modules/SEO/: CMSModule. Routes: /sitemap.xml, /robots.txt. Widget: % entries with meta. Hook: afterSave auto-generates meta_description. 
+☐ 
+Analytics example plugin 
+Modules/Analytics/: Track API hits per type per day. Chart.js dashboard widget. 
+☐ 
+Tests 
+Discovery loads manifest. SEO generates valid sitemap. Analytics records hits. 
+ 
+AGENT 3: STRAPI MIGRATION TOOL 
+YOU OWN: Sources/CMSCLI/Migration/   |   Master Plan Ref: Master Plan Strapi Migration 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+StrapiSchemaParser.swift 
+Read schema.json from src/api/*/content-types/*/. Map Strapi types (string,text,richtext,integer,float,boolean,datetime,enum,media,relation) to SwiftCMS. Generate ContentTypeDefinitionDTO. 
+☐ 
+StrapiDataImporter.swift 
+Read Strapi JSON export. Map entries to content_entries format. Preserve IDs. 
+☐ 
+Migration report 
+Markdown: types migrated (field mapping), entries per type, unmapped fields (manual attention), media files, users/roles. 
+☐ 
+CLI command 
+&apos;cms import-strapi --path ./strapi-project&apos;. ArgumentParser subcommand. 
+☐ 
+Tests 
+Sample schema.json fixtures. Correct type definitions generated. Field mapping covers all Strapi types. 
+ 
+AGENT 4: CONTENT VERSIONING 
+YOU OWN: Sources/CMSSchema/Versioning/   |   Master Plan Ref: Master Plan §5: Version History 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+VersionService.swift 
+On ContentUpdatedEvent: create ContentVersion (auto-increment version, full data snapshot, user). Methods: listVersions, getVersion, restoreVersion (creates new version from historical). 
+☐ 
+Version API endpoints 
+GET /:contentType/:id/versions (list). GET .../versions/:version (single). POST .../versions/:version/restore. 
+☐ 
+Version diff 
+Compare two snapshots: added/removed/changed fields with before/after values. Structured JSON. 
+☐ 
+Admin version page 
+content/versions.leaf: Version list. Compare two versions with visual diff (green/red/yellow highlighting). 
+☐ 
+Retention + pruning 
+VersionPruningJob (daily). max_versions (50), max_age_days (365). Always keep version 1 + current. 
+☐ 
+Tests 
+Create, update 3x -&gt; 3 versions. Restore v1 -&gt; data matches. Diff v1 vs v3. Pruning respects limits. 
+ 
+AGENT 5: WEBSOCKET &amp; STATIC EXPORT 
+YOU OWN: Sources/App/WebSocket/, Sources/CMSCLI/Export/   |   Master Plan Ref: Master Plan §9: Static Export 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+WebSocket server 
+Vapor WebSocket at /ws. Auth via ?token= query param JWT. On connect: subscribe to EventBus. Forward content events as JSON messages. Track active connections. 
+☐ 
+Channel subscriptions 
+Clients send JSON { subscribe: contentType } to filter events. Only receive events for subscribed types. 
+☐ 
+Admin real-time 
+HTMX SSE or WebSocket: notify admin panel of changes by other users. Show toast notifications. 
+☐ 
+Static export CLI 
+&apos;cms export --format=static-json --output ./bundles --locale en-US&apos;. Generate /bundles/{locale}/{contentType}/{slug}.json. Only published. ExportManifest.json with hashes. Incremental: --since timestamp. 
+☐ 
+Tests 
+WebSocket connect + subscribe + receive event. Static export generates correct file structure. Incremental only includes changes. 
+ 
+AGENT 6: ADVANCED ADMIN FEATURES 
+YOU OWN: Sources/CMSAdmin/Advanced/   |   Master Plan Ref: Master Plan Admin 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Content type duplication 
+Clone a type definition with all fields. Generate new slug. Admin button. 
+☐ 
+Field-level permissions UI 
+Per-role field visibility/editability toggles. Stored in role settings JSONB. 
+☐ 
+Dashboard widgets 
+Chart.js content statistics: entries created per day, popular types bar chart. 
+☐ 
+API explorer 
+Embed Swagger UI at /admin/api-explorer. Auto-generated OpenAPI spec from content types. 
+☐ 
+Saved presets 
+Save filter/sort combinations per content type. Dropdown to apply. Stored in user settings. 
+☐ 
+Branding 
+Settings page: upload logo, pick primary color, custom CSS. Applied to admin layout. 
+☐ 
+Tests 
+Duplication creates correct new type. Chart data endpoint returns valid JSON. 
+ 
+AGENT 7: DOCUMENTATION 
+YOU OWN: README.md, docs/, examples/   |   Master Plan Ref: Master Plan Documentation 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+README.md 
+Quick start (5 min), feature list, architecture overview, badges (CI, license, Swift version). 
+☐ 
+docs/ guides 
+Installation, configuration, content types, authentication (Auth0/Firebase/Local), deployment (Docker/K8s), plugin development, migration from Strapi. 
+☐ 
+API reference 
+Auto-generated from OpenAPI spec. Host via SwaggerUI or Redoc. 
+☐ 
+Example: Blog + SwiftUI 
+examples/blog-swiftui/: SwiftCMS config + SwiftUI iOS app consuming generated SDK. 
+☐ 
+Example: E-commerce catalog 
+examples/ecommerce/: Product + Category types with relations. 
+☐ 
+Contributing guide 
+CONTRIBUTING.md: fork, branch, PR process. Code of conduct. How to create plugins. 
+☐ 
+Tests 
+Verify all doc links resolve. Example projects compile. 
+ 
+AGENT 8: FINAL INTEGRATION &amp; RELEASE 
+YOU OWN: Tests/, Scripts/, .github/   |   Master Plan Ref: Master Plan Release 
+⚠ This is the FINAL integration. Everything must be perfect for v1.0.0. 
+✔ 
+Task 
+Details / Acceptance Criteria 
+☐ 
+Merge all Wave 4 branches 
+Order: 1 (SDK) &gt; 2 (plugins) &gt; 3 (migration) &gt; 4 (versioning) &gt; 5 (WS+export) &gt; 6 (admin) &gt; 7 (docs). 
+☐ 
+Full journey e2e test 
+Create type -&gt; create entries -&gt; query REST -&gt; query GraphQL -&gt; generate SDK -&gt; compile SDK -&gt; consume in test -&gt; verify types match. 
+☐ 
+Strapi import e2e 
+Import sample Strapi project. Verify types, entries, and media migrated correctly. 
+☐ 
+Plugin e2e 
+Install SEO plugin. Create content. Verify sitemap.xml generated. Meta description auto-filled. 
+☐ 
+Release automation 
+Semantic versioning script. CHANGELOG.md generation from commit messages. GitHub release action. 
+☐ 
+Homebrew formula 
+Formula for &apos;brew install swiftcms&apos; that installs the CLI tool. 
+☐ 
+DocC generation 
+Generate Swift API documentation via DocC for all public types. 
+☐ 
+Performance regression 
+Re-run Wave 3 load tests. Verify no regression from Wave 4 additions. 
+☐ 
+Tag v1.0.0 
+Create annotated tag. Draft release notes. Announce. 
+EXIT CRITERIA: SDK compiles → Strapi import works → SEO plugin functions → versions show diffs → WebSocket delivers → static export for iOS → docs complete → v1.0.0 tagged. 
+ 
+— End of Checklist — 
+For detailed architecture context, refer to SwiftCMS Master Plan V2 

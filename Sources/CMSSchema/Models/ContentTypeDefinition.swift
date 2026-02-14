@@ -1,6 +1,7 @@
 import Fluent
 import Vapor
 import CMSObjects
+import CryptoKit
 
 // MARK: - ContentTypeDefinition
 
@@ -38,20 +39,26 @@ public final class ContentTypeDefinition: Model, Content, @unchecked Sendable {
     @OptionalField(key: "tenant_id")
     public var tenantId: String?
 
+    @Field(key: "schema_hash")
+    public var schemaHash: String
+
     @Timestamp(key: "created_at", on: .create)
     public var createdAt: Date?
 
     @Timestamp(key: "updated_at", on: .update)
     public var updatedAt: Date?
 
-    public init() {}
+    public init() {
+        self.schemaHash = ""
+    }
 
     public init(
         id: UUID? = nil, name: String, slug: String, displayName: String,
         description: String? = nil, kind: ContentTypeKind = .collection,
         jsonSchema: AnyCodableValue = .dictionary([:]),
         fieldOrder: AnyCodableValue = .array([]),
-        settings: AnyCodableValue? = nil, tenantId: String? = nil
+        settings: AnyCodableValue? = nil, tenantId: String? = nil,
+        schemaHash: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -63,6 +70,7 @@ public final class ContentTypeDefinition: Model, Content, @unchecked Sendable {
         self.fieldOrder = fieldOrder
         self.settings = settings
         self.tenantId = tenantId
+        self.schemaHash = schemaHash ?? computeSchemaHash(jsonSchema: jsonSchema)
     }
 
     /// Convert to response DTO.
@@ -78,9 +86,24 @@ public final class ContentTypeDefinition: Model, Content, @unchecked Sendable {
             fieldOrder: fieldOrder,
             settings: settings,
             tenantId: tenantId,
+            schemaHash: schemaHash,
             createdAt: createdAt,
             updatedAt: updatedAt
         )
+    }
+
+    /// Compute SHA256 hash of JSON schema for version tracking.
+    func computeSchemaHash(jsonSchema: AnyCodableValue) -> String {
+        guard let data = try? JSONEncoder().encode(jsonSchema) else {
+            return ""
+        }
+        let hash = SHA256.hash(data: data)
+        return hash.compactMap { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Update schema hash when jsonSchema changes.
+    func updateSchemaHash() {
+        self.schemaHash = computeSchemaHash(jsonSchema: jsonSchema)
     }
 }
 

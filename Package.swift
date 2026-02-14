@@ -38,6 +38,9 @@ let package = Package(
         .package(url: "https://github.com/kylef/JSONSchema.swift.git", from: "0.6.0"),
         // AWS S3 via Soto
         .package(url: "https://github.com/soto-project/soto.git", from: "7.0.0"),
+        // GraphQL (Graphiti + Pioneer) — Wave 3
+        .package(url: "https://github.com/GraphQLSwift/Graphiti.git", from: "1.15.1"),
+        .package(url: "https://github.com/d-exclaimation/pioneer", from: "1.0.0"),
     ],
     targets: [
         // ─── Application ─────────────────────────────────────────────
@@ -70,6 +73,9 @@ let package = Package(
             dependencies: [
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Vapor", package: "vapor"),
+                .product(name: "Fluent", package: "fluent"),
+                .product(name: "FluentPostgresDriver", package: "fluent-postgres-driver"),
+                .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
                 "CMSCore",
                 "CMSSchema",
                 "CMSObjects",
@@ -181,6 +187,8 @@ let package = Package(
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
                 .product(name: "Fluent", package: "fluent"),
+                .product(name: "Graphiti", package: "Graphiti"),
+                .product(name: "Pioneer", package: "pioneer"),
                 "CMSCore",
                 "CMSSchema",
                 "CMSObjects",

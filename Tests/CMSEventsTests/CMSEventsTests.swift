@@ -2,15 +2,33 @@ import XCTest
 import Logging
 @testable import CMSEvents
 
+/// Thread-safe wrapper for capturing values in async tests
+final class CapturedValue<T>: @unchecked Sendable {
+    private var _value: T?
+    private let lock = NSLock()
+
+    var value: T? {
+        lock.lock()
+        defer { lock.unlock() }
+        return _value
+    }
+
+    func set(_ newValue: T) {
+        lock.lock()
+        defer { lock.unlock() }
+        _value = newValue
+    }
+}
+
 final class CMSEventsTests: XCTestCase {
 
     func testInProcessEventBusPublishSubscribe() async throws {
         let bus = InProcessEventBus()
         let expectation = XCTestExpectation(description: "Event received")
-        var receivedEntryId: UUID?
+        let receivedEntryId = CapturedValue<UUID>()
 
         bus.subscribe(ContentCreatedEvent.self) { event, _ in
-            receivedEntryId = event.entryId
+            receivedEntryId.set(event.entryId)
             expectation.fulfill()
         }
 
@@ -24,7 +42,7 @@ final class CMSEventsTests: XCTestCase {
         try await bus.publish(event: event, context: context)
 
         await fulfillment(of: [expectation], timeout: 2.0)
-        XCTAssertEqual(receivedEntryId, entryId)
+        XCTAssertEqual(receivedEntryId.value, entryId)
     }
 
     func testMultipleSubscribers() async throws {

@@ -4,21 +4,86 @@
     <h3 class="text-lg font-semibold">Media Library</h3>
     <label for="upload-modal" class="btn btn-primary btn-sm">+ Upload</label>
 </div>
-<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+
+<!-- Filter -->
+<div class="flex gap-2 mb-4">
+    <select class="select select-bordered select-sm" onchange="window.location.search='?type='+this.value">
+        <option value="">All Types</option>
+        <option value="image">Images</option>
+        <option value="application/pdf">PDFs</option>
+        <option value="video">Videos</option>
+        <option value="audio">Audio</option>
+    </select>
+    <input type="text" placeholder="Search files..." class="input input-bordered input-sm flex-1"
+           hx-get="/admin/media" hx-trigger="keyup changed delay:300ms" hx-target="#media-grid" name="q">
+</div>
+
+<!-- Media Grid -->
+<div id="media-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
     #for(file in files):
-    <div class="card bg-base-100 shadow-sm">
-        <figure class="h-32 bg-base-300 flex items-center justify-center">
-            #if(file.mimeType == "image/png" || file.mimeType == "image/jpeg"):
+    <div class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
+        <figure class="h-32 bg-base-300 flex items-center justify-center overflow-hidden">
+            #if(file.mimeType == "image/png" || file.mimeType == "image/jpeg" || file.mimeType == "image/gif" || file.mimeType == "image/webp"):
             <img src="/#(file.storagePath)" alt="#(file.filename)" class="object-cover h-full w-full">
+            #elseif(file.mimeType == "image/svg+xml"):
+            <img src="/#(file.storagePath)" alt="#(file.filename)" class="object-contain h-20 w-20">
+            #elseif(file.mimeType == "application/pdf"):
+            <span class="text-3xl">PDF</span>
+            #elseif(file.mimeType == "video/mp4"):
+            <span class="text-3xl">VID</span>
             #else:
-            <span class="text-2xl">📄</span>
+            <span class="text-3xl">DOC</span>
             #endif
         </figure>
         <div class="card-body p-2">
-            <p class="text-xs truncate">#(file.filename)</p>
+            <p class="text-xs truncate font-medium">#(file.filename)</p>
+            <p class="text-xs text-base-content/50">#(file.mimeType)</p>
+            <div class="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 mt-1">
+                <button class="btn btn-ghost btn-xs" onclick="navigator.clipboard.writeText('/#(file.storagePath)')">Copy URL</button>
+                <form method="DELETE" action="/api/v1/media/#(file.id)"
+                      onsubmit="return confirm('Delete this file?')">
+                    <button class="btn btn-error btn-xs btn-outline">Del</button>
+                </form>
+            </div>
         </div>
     </div>
     #endfor
+    #if(count(files) == 0):
+    <div class="col-span-full text-center py-12 text-base-content/50">
+        <p class="text-lg mb-2">No media files yet</p>
+        <p class="text-sm">Upload your first file using the button above</p>
+    </div>
+    #endif
+</div>
+
+<!-- Upload Modal -->
+<input type="checkbox" id="upload-modal" class="modal-toggle">
+<div class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Upload File</h3>
+        <form method="POST" action="/admin/media/upload" enctype="multipart/form-data">
+            <div class="form-control mb-4" x-data="{ dragover: false }">
+                <div class="border-2 border-dashed rounded-lg p-8 text-center transition-colors"
+                     :class="dragover ? 'border-primary bg-primary/5' : 'border-base-300'"
+                     @dragover.prevent="dragover = true"
+                     @dragleave="dragover = false"
+                     @drop.prevent="dragover = false; $refs.fileInput.files = $event.dataTransfer.files">
+                    <p class="text-base-content/60 mb-2">Drag & drop a file here, or</p>
+                    <label class="btn btn-outline btn-sm">
+                        Choose File
+                        <input type="file" name="file" class="hidden" x-ref="fileInput"
+                               accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.pdf,.mp4,.mp3,.doc,.docx,.xls,.xlsx">
+                    </label>
+                    <p class="text-xs text-base-content/40 mt-2">Max 50MB. Supported: images, PDFs, videos, docs</p>
+                </div>
+            </div>
+            <div class="modal-action">
+                <label for="upload-modal" class="btn btn-ghost">Cancel</label>
+                <button type="submit" class="btn btn-primary">Upload</button>
+            </div>
+        </form>
+    </div>
+    <label class="modal-backdrop" for="upload-modal"></label>
 </div>
 #endexport
 #endextend

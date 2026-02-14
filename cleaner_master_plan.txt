@@ -1,0 +1,717 @@
+ 
+SWIFTCMS 
+A Type-Safe, High-Performance Headless CMS 
+for Apple-Native Teams 
+ 
+Master Architecture &amp; Implementation Plan 
+Version 2.0  •  February 2026 
+Incorporating Staff+ Architecture Review Feedback 
+ 
+Prepared by Gurinder Singh 
+Staff iOS &amp; AI/ML Engineer 
+4-Wave / 8-Agent Parallel Development Strategy 
+ 
+Table of Contents 
+TOC \h \o &quot;1-3&quot; 
+ 
+ 
+Executive Summary 
+  POSITIONING STATEMENT 
+  SwiftCMS brings Strapi’s flexibility to Swift’s performance — runtime-defined content types with type-safe client SDKs, built for teams shipping iOS and macOS apps that need a backend engineered for Apple’s ecosystem. It is not “Strapi in Swift.” It is the CMS optimized for Apple developers building Apple-first products. 
+SwiftCMS is an open-source, headless Content Management System built entirely in Swift. It targets the Apple-centric ecosystem where no production-ready, self-hosted headless CMS exists today. The project leverages Vapor for the HTTP server, PostgreSQL JSONB for dynamic content storage, Auth0 for authentication (with a pluggable provider abstraction), Graphiti + Pioneer for GraphQL, and Leaf + HTMX for the admin panel. 
+The core technical innovation is a JSONB-first storage architecture with JSON Schema validation that solves the fundamental challenge of runtime-definable content types in a statically typed language. This approach, validated against lessons from two failed Swift CMS projects (Pigeon CMS and Feather CMS), delivers approximately 90% of Strapi’s flexibility while remaining idiomatic to Swift. The killer differentiator is automatic generation of typed Swift client SDKs from content type definitions, enabling compile-time safety across the entire stack from CMS backend to iOS frontend. 
+The project is constructed using a multi-agent AI development strategy with 8 parallel agents per wave across 4 waves, targeting a production-ready v1.0.0 within 16 weeks. Each wave is orchestrated through git worktrees with strict module boundaries. 
+What’s New in V2 
+This V2 document incorporates a comprehensive Staff+ architecture review that identified five genuine gaps in V1 and provided critical positioning refinements. All feedback has been addressed: an explicit EventBus service layer for internal pub/sub with NATS/Redis Streams abstraction has been added; Dead Letter Queue tables and idempotency key handling for webhook deliveries are now specified; a static JSON export mode for offline-first iOS apps is included; raw WebSocket endpoints for non-GraphQL real-time clients are designed; the service architecture has been refactored into a cleaner 6-layer model; comparative benchmarks against Strapi/Node.js are provided; and new sections cover Non-Goals, Scalability Model, Content Lifecycle state machine, and explicit risk mitigations with quantified strategies. 
+ 
+Non-Goals 
+Explicitly defining what SwiftCMS is not is as important as defining what it is. These non-goals prevent scope creep, align contributor expectations, and sharpen the project’s positioning. 
+Non-Goal 
+Rationale 
+Alternative 
+WordPress replacement 
+SwiftCMS is headless and API-first. It does not render frontend pages, manage themes, or provide a WYSIWYG page builder. 
+Use SwiftCMS as a backend with any frontend framework. 
+General-purpose web framework 
+SwiftCMS is a CMS, not an application framework. Business logic belongs in consuming applications, not in CMS plugins. 
+Use Vapor directly for custom application logic. 
+Multi-database engine 
+PostgreSQL is the only production database. JSONB with GIN indexes is fundamental to the architecture. Supporting MySQL/MongoDB would compromise the core design. 
+SQLite is supported for local development only. 
+Real-time collaborative editing 
+Google Docs-style concurrent editing requires CRDT or OT algorithms (8–12 weeks of development) and is an enterprise-tier feature. 
+Content locking (optimistic via ETags) prevents conflicts. 
+Serverless deployment 
+AWS Lambda’s Swift bridge is not production-ready (17 commits, 800–900ms cold starts). The CMS requires persistent connections. 
+Deploy on containers via Docker/Kubernetes/ECS. 
+Enterprise SSO/SAML in core 
+SSO is handled at the auth provider level (Auth0 provides this out of the box). Building it into CMS core duplicates effort. 
+Configure SSO in Auth0 Organizations. 
+Replacing Strapi for Node.js teams 
+SwiftCMS targets Apple-native teams, not the JavaScript ecosystem. It does not aim to compete on Node.js’s turf. 
+Strapi remains the better choice for JavaScript-first teams. 
+ 
+System Architecture 
+Refined 6-Layer Architecture 
+The V2 architecture refactors the system into six cleanly separated layers, addressing the review feedback that V1 felt “slightly flattened.” Each layer has explicit responsibilities and communication contracts. Layers communicate only with their immediate neighbors, with the exception of the observability system which instruments all layers. 
+Layer 
+Components 
+Responsibility 
+1. Client Layer 
+iOS/macOS apps (SwiftUI), web frontends (React/Next.js), IoT devices, admin panel (Leaf + HTMX at /admin) 
+Consume the API. The admin panel is a first-party client, not a special case — it uses the same API endpoints as external consumers, establishing the headless-first principle. 
+2. API Layer (Vapor) 
+REST controllers (/api/v1/:contentType), GraphQL (Graphiti + Pioneer at /graphql), WebSocket server (/ws), Webhook dispatcher 
+Accept requests, authenticate, route to services. Four transport protocols: REST for standard CRUD, GraphQL for flexible queries, WebSocket for real-time subscriptions, and outbound webhooks for external integrations. 
+3. Service Layer 
+ContentService, MediaService, AuthService, SearchService, EventService, JobService, TenantService 
+Business logic. Services are stateless, protocol-defined, and injected via Vapor’s Application storage keys. This is the layer that enforces content lifecycle rules, RBAC, validation, and cross-cutting concerns. 
+4. Core Engine 
+Schema Registry (JSON Schema definitions), JSON Validator (kylef/JSONSchema.swift), Hook Registry (typed event system), EventBus (Redis Streams / in-process pub/sub) 
+The differentiating layer. Manages runtime content type definitions, validates data against schemas, dispatches internal events, and coordinates module lifecycle. 
+5. Data Layer 
+Fluent ORM (PostgreSQL JSONB + GIN indexes), Redis (cache, sessions, rate limits, job queues), Meilisearch (full-text search), S3/local (file storage via Soto) 
+Persistence and retrieval. PostgreSQL handles JSONB dynamic content. Redis serves as the operational backbone for everything ephemeral. Meilisearch provides sub-50ms search. 
+6. Infrastructure 
+Docker/Kubernetes (deployment), swift-otel (OpenTelemetry metrics + tracing), swift-log + Loki (logging), Gatekeeper (rate limiting), Health checks (/healthz, /ready, /startup) 
+Operational concerns. Observability instruments all layers. Rate limiting protects the API layer. Health checks support Kubernetes orchestration. 
+ 
+Monorepo Project Structure 
+Package / Directory 
+Layer 
+Purpose 
+Sources/App 
+Bootstrap 
+Entry point, Vapor configuration, environment loading, module registration 
+Sources/CMSCore 
+Core Engine 
+CMSModule protocol, Hook registry, EventBus protocol + Redis Streams implementation 
+Sources/CMSSchema 
+Core Engine 
+Content type engine: JSON Schema registry, validation, field type registry, relation resolver 
+Sources/CMSApi 
+API Layer 
+REST controllers, GraphQL resolvers (Graphiti + Pioneer), WebSocket handlers 
+Sources/CMSAdmin 
+Client Layer 
+Leaf + HTMX admin panel, dynamic form generation, Alpine.js/SortableJS/TipTap islands 
+Sources/CMSAuth 
+Service Layer 
+AuthProvider protocol, Auth0Provider, FirebaseProvider, RBAC middleware, session auth, API keys 
+Sources/CMSMedia 
+Service Layer 
+FileStorageProvider protocol, S3 (Soto) + local drivers, thumbnail pipeline, media CRUD 
+Sources/CMSSearch 
+Service Layer 
+Meilisearch client wrapper, auto-indexing via hooks, search API endpoint 
+Sources/CMSEvents 
+Core Engine 
+EventBus abstraction, WebhookDispatcher, Dead Letter Queue, idempotency handling 
+Sources/CMSJobs 
+Service Layer 
+Vapor Queues configuration, job definitions, retry policies, DLQ processing 
+Sources/CMSObjects 
+Shared 
+DTOs, API request/response types, pagination wrapper, error types 
+Sources/CMSCLI 
+Developer Tool 
+ArgumentParser CLI: scaffolding, migrations, SDK generation, Strapi import, static export 
+Modules/ 
+Plugin System 
+Community/custom modules conforming to CMSModule protocol 
+ClientSDK/ 
+Developer Tool 
+Auto-generated typed Swift client package from live schema 
+Tests/ 
+Quality 
+Unit, integration, load tests organized by module 
+ 
+Event &amp; Webhook Architecture 
+This section addresses the review feedback that V1 was too request-response oriented. Without an event system, the CMS cannot power static site rebuilds, search indexing, analytics pipelines, Stripe triggers, or external syncs. SwiftCMS introduces a two-tier event architecture: an internal EventBus for in-process communication between modules, and an outbound Webhook Dispatcher for notifying external systems. 
+Internal EventBus 
+The EventBus is a protocol-based abstraction with two implementations. The InProcessEventBus (default for single-instance deployments) uses Swift’s async/await and actor-based isolation to dispatch events to registered handlers within the same process. The RedisStreamsEventBus (for multi-instance deployments) publishes events to Redis Streams, enabling horizontal scaling where any instance can process any event. Both implementations conform to the same EventBus protocol, and the selection is driven by environment configuration. 
+Events are strongly typed Swift structs conforming to a CmsEvent protocol that requires a static eventName string and Codable conformance. The core lifecycle events are: content.created, content.updated, content.deleted, content.published, content.unpublished, schema.created, schema.updated, schema.deleted, media.uploaded, media.deleted, user.login, and user.roleChanged. Modules register event handlers during their boot(app:) lifecycle phase, and the EventBus dispatches to all registered handlers asynchronously. Plugin developers use the same mechanism to react to core events. 
+The EventBus protocol defines four methods: publish() fires an event to all registered handlers, subscribe() registers a handler for a specific event type, unsubscribe() removes a handler, and replay() re-processes events from a given timestamp (Redis Streams only, used for recovery scenarios). Handlers receive the event and a CmsContext containing the database, logger, and authenticated user. 
+Outbound Webhook Dispatcher 
+The Webhook Dispatcher listens to EventBus events and forwards matching events to configured external URLs. Administrators configure webhooks through the admin panel, specifying a URL, which events to subscribe to, custom headers (for authentication), and retry policy. On each matching event, the dispatcher creates a WebhookDelivery record, serializes the event payload as JSON, signs it with HMAC-SHA256 (the webhook secret is included in an X-SwiftCMS-Signature header), and enqueues an HTTP POST job via Vapor Queues. 
+Delivery follows an exponential backoff retry policy: attempts at 0, 30, 120, 480, and 1920 seconds (approximately 30 minutes total). Each attempt updates the WebhookDelivery record with the response status code, response body (truncated to 1KB), and attempt timestamp. After 5 failed attempts, the delivery is moved to the Dead Letter Queue (dead_letter_entries table) with the full failure context. An admin panel page shows delivery history per webhook with success/failure rates, average latency, and the ability to manually retry failed deliveries. 
+Dead Letter Queue &amp; Idempotency 
+The Dead Letter Queue (DLQ) is a PostgreSQL table storing failed jobs of any type (not just webhooks) that have exhausted their retry budgets. Each entry records the original job type, payload, failure reason, retry count, first failure timestamp, and last failure timestamp. An admin panel page provides DLQ management: view entries by type, inspect payloads, retry individual entries or batches, and purge entries older than a configurable retention period (default: 30 days). 
+Idempotency is enforced via unique keys on webhook deliveries. Each delivery is assigned an idempotency key composed of the webhook ID, event name, and content entry ID. If the same event fires multiple times (due to rapid successive saves, for example), duplicate deliveries are suppressed by checking for an existing delivery with the same idempotency key within a 60-second window. This prevents downstream systems from processing the same content change multiple times. 
+ 
+Content Lifecycle &amp; Versioning 
+The review correctly identified that enterprises do not want CRUD — they want controlled content flow. SwiftCMS implements a full content lifecycle with state machine enforcement, version history, audit logging, scheduled publishing, and soft deletes. 
+Content State Machine 
+Every content entry has a status field governed by a finite state machine with five states and defined transitions. Draft is the initial state for new entries and allows transitions to Review or Published (if the user has publish permission). Review is an optional intermediate state for editorial workflows, allowing transitions to Published or back to Draft. Published makes the entry visible through public API endpoints and allows transitions to Archived or back to Draft (which triggers unpublish). Archived is a soft-delete state that removes the entry from public API responses but preserves it in the database, allowing transition back to Draft for restoration. Deleted is a soft-delete terminal state reached only from Archived, with entries purged after a configurable retention period (default: 90 days). Hard deletion is available only to Super Admin role. 
+The state machine is enforced at the service layer, not the controller layer, meaning it applies equally to REST, GraphQL, admin panel, and programmatic access. Invalid transitions return a 422 Unprocessable Entity with a clear error message describing the current state and allowed transitions. Each transition fires an EventBus event (content.stateChanged) containing the previous state, new state, entry ID, and the user who triggered the change. 
+Scheduled Publishing 
+Content entries support a publish_at timestamp. When set, a background job (via Vapor Queues) runs every 60 seconds checking for entries in Draft or Review state whose publish_at timestamp has passed. Matching entries are transitioned to Published and the content.published event fires. The admin panel provides a date/time picker for scheduling, and the REST/GraphQL APIs accept publish_at in create and update payloads. A separate unpublish_at field supports scheduled archival. 
+Version History 
+Every update to a content entry creates a version record in the content_versions table. Each version stores the complete entry data (JSONB snapshot), the version number (auto-incrementing per entry), the user who made the change, and a timestamp. The API exposes version endpoints: GET /api/v1/:contentType/:id/versions lists all versions, GET /api/v1/:contentType/:id/versions/:version retrieves a specific version, POST /api/v1/:contentType/:id/versions/:version/restore reverts the entry to that version (creating a new version in the process). The admin panel provides a version history page with visual diff between any two versions, highlighting added, removed, and changed fields. 
+Version retention is configurable per content type: maximum number of versions (default: 50), and maximum age (default: 365 days). A background job prunes versions exceeding these limits, always preserving the current version and the first version (for audit trail). Version data is excluded from the GIN index to minimize index bloat. 
+Audit Logging 
+All content mutations (create, update, state change, delete) are recorded in an audit_log table with the entry ID, action type, user ID, timestamp, and a before/after JSONB diff. The audit log is append-only and cannot be modified or deleted except by database administrators. The admin panel provides an activity feed showing recent changes across all content types, filterable by user, content type, and action. Audit entries are retained for a configurable period (default: 2 years) and can be exported as CSV for compliance reporting. 
+ 
+Authentication Architecture 
+Authentication is built on a pluggable provider abstraction, directly addressing the review’s warning against auth vendor lock-in. The AuthProvider Swift protocol defines the contract: configure(app:) for setup, verify(token:) for JWT validation returning an AuthenticatedUser, and middleware() for route protection. Provider selection is driven by environment configuration (AUTH_PROVIDER=auth0 or AUTH_PROVIDER=firebase or AUTH_PROVIDER=local). 
+Provider Comparison 
+Capability 
+Auth0 (Recommended) 
+Firebase Auth 
+Local JWT 
+Vapor Integration 
+Standard JWKS + jwt-kit (~30 LOC) 
+Manual X.509 cert refresh 
+Built-in, no external calls 
+RBAC 
+Native dashboard roles + JWT permissions 
+Custom claims (1KB limit) 
+DB-backed roles table 
+Multi-Tenancy 
+Organizations (shared users, SSO) 
+Isolated tenant silos 
+Row-level tenant_id 
+Social Providers 
+60+ built-in 
+~7 native 
+Manual OAuth per provider 
+MFA 
+Push, WebAuthn, adaptive risk 
+SMS, TOTP, email 
+Not included (bring your own) 
+Free Tier 
+25K MAU (no RBAC/MFA) 
+50K MAU (email/social) 
+Unlimited (self-hosted) 
+Cost at 100K MAU 
+~$3,500/mo 
+~$275/mo 
+$0 (infrastructure cost only) 
+Best For 
+Production multi-site deployments 
+Cost-sensitive single-site 
+Air-gapped or self-sovereign 
+ 
+Three Authentication Mechanisms 
+SwiftCMS runs three parallel authentication systems, each serving different access patterns. First, JWT bearer tokens for API access, verified against the configured auth provider’s JWKS endpoint. Second, session-based authentication for the admin panel, using secure HTTP-only cookies backed by Redis session storage. Third, API keys for machine-to-machine access (CI/CD pipelines, static site generators, mobile app backends), stored as bcrypt hashes in the api_keys table with configurable permission scopes and expiration dates. 
+RBAC Permission Model 
+Permissions follow Strapi’s resource:action pattern, scoped per content type. The six core actions are: create, read, update, delete, publish, and configure (for content type schema modifications). Permissions are stored in a permissions table linking role IDs to content type slugs and action strings. The RBAC middleware checks the authenticated user’s role permissions against the requested content type and action before forwarding to the controller. Four default roles ship with the system: Super Admin (all permissions, non-deletable), Editor (CRUD + publish on all types), Author (CRUD on own entries only, no publish), and Public (configurable read-only per type, no authentication required). 
+ 
+Scalability Model 
+SwiftCMS is designed for horizontal scaling from day one. The architecture assumes multiple Vapor instances behind a load balancer, with all shared state externalized to PostgreSQL and Redis. No instance holds in-memory state that cannot be reconstructed from these backing stores. 
+Multi-Tenancy Strategy 
+The review correctly identified the need for an explicit multi-tenancy strategy. SwiftCMS supports two modes. In single-tenant mode (default), one SwiftCMS instance serves one project/site. This is the simplest deployment and suitable for most use cases. In multi-tenant mode, a single SwiftCMS cluster serves multiple projects/sites, with tenant isolation at the row level. Every content_entries, content_type_definitions, media_files, and audit_log row includes a tenant_id column. A TenantContext middleware extracts the tenant identifier from the JWT custom claims (Auth0 Organization ID), subdomain (blog.example.com maps to tenant “blog”), or a custom X-Tenant-ID header. The TenantContext is injected into the Vapor Request via a storage key and automatically applied to all Fluent queries via a TenantScopedQueryModifier middleware, ensuring tenants can never access each other’s data. 
+Scaling Targets 
+Dimension 
+Single Instance 
+Clustered (3 pods) 
+Notes 
+Throughput (reads) 
+~9,000 req/sec 
+~25,000 req/sec 
+Limited by PostgreSQL connections at higher scale 
+Throughput (writes) 
+~2,000 req/sec 
+~5,000 req/sec 
+JSONB write + GIN index update bottleneck 
+Content entries 
+~1M per content type 
+~10M per content type 
+Expression indexes on hot fields required above 100K 
+Content types 
+~500 definitions 
+~500 definitions 
+Schema registry cached in Redis, negligible overhead 
+Concurrent connections 
+~1,000 
+~3,000 
+Fluent pool: 10 per pod, PgBouncer recommended above 5 pods 
+Media storage 
+Limited by disk/S3 
+Unlimited (S3) 
+S3 recommended for any deployment expecting &gt;10GB media 
+Memory per instance 
+50–100MB RSS 
+50–100MB RSS 
+Swift ARC eliminates GC pauses 
+ 
+Connection Pool Architecture 
+PostgreSQL connections are managed via Fluent’s built-in connection pooling: 10 connections per Vapor instance by default, configurable via environment variable. For deployments exceeding 5 pods (50+ connections), PgBouncer is recommended as a connection multiplexer between Vapor instances and PostgreSQL. Redis connections use a dedicated pool of 5 connections per instance for cache/session operations, plus a separate pool for Vapor Queues job processing to prevent queue backpressure from starving cache reads. 
+ 
+Performance Targets &amp; Comparative Benchmarks 
+The review emphasized that engineers love numbers. SwiftCMS’s performance positioning against Strapi/Node.js is a key differentiator and must be substantiated with specific, measurable targets and comparative data. 
+Comparative Benchmarks: SwiftCMS vs Strapi 
+Metric 
+SwiftCMS Target (p99) 
+Strapi / Node.js Typical 
+Advantage 
+Content read (cached) 
+&lt;50ms 
+150–300ms 
+3–6x faster 
+Content read (uncached, 10K entries) 
+&lt;200ms 
+500–1,200ms 
+3–6x faster 
+Content creation with validation 
+&lt;100ms 
+200–500ms 
+2–5x faster 
+GraphQL query (10 fields) 
+&lt;80ms 
+150–400ms 
+2–5x faster 
+Search query (Meilisearch) 
+&lt;50ms 
+N/A (Strapi has no built-in search) 
+Included vs. absent 
+Memory per instance 
+50–100MB RSS 
+150–400MB RSS 
+3–4x leaner 
+Cold start (container) 
+~200ms 
+2–5s (Strapi boot time) 
+10–25x faster 
+Concurrent writers (50 simultaneous) 
+0 errors, &lt;500ms p99 
+Frequent timeouts at 30+ 
+Robust under load 
+Sustained throughput 
+&gt;1,000 req/sec 
+200–400 req/sec 
+3–5x higher 
+Binary size (Docker image) 
+~200MB 
+~800MB–1.2GB 
+4–6x smaller 
+ 
+Methodology: Targets are derived from Vapor framework benchmarks (November 2025, web-frameworks-benchmark.netlify.app), published Node.js vs Swift comparisons showing 3–10x throughput for CPU-bound operations, and reported production migrations showing 4x performance with 50% less hardware. Actual benchmarks will be run during Wave 3 Agent 8 (load testing) and published in the project README. 
+Performance Architecture Decisions 
+Several architectural choices directly enable these performance targets. Swift’s ARC-based memory management provides predictable latency without garbage collection pauses, critical for consistent API response times. PostgreSQL JSONB with GIN indexes delivers query performance within 5–15% of native column queries while enabling the dynamic content type system. Redis multi-tier caching (in-memory hot, Redis warm, PostgreSQL cold) eliminates database roundtrips for read-heavy workloads. ETag-based conditional responses (304 Not Modified) reduce bandwidth for unchanged content. Response compression via Vapor’s middleware reduces payload sizes. And Fluent’s eager loading eliminates N+1 query problems for relation resolution. 
+ 
+Apple-Specific Differentiators 
+The review sharpened the positioning: if SwiftCMS is the CMS optimized for Apple developers, it should lean into that aggressively. Three features make SwiftCMS uniquely valuable to Apple-native teams and are not available in any competitor. 
+Type-Safe Swift Client SDK Generation 
+The CMSCLI tool provides a cms generate-sdk swift command that reads the current content type definitions from the database and generates a complete Swift package. Each content type becomes a Codable struct with typed properties matching the JSON Schema field definitions (string fields become String, number fields become Double, boolean fields become Bool, relations become optional UUID references or nested types). The generated package includes an async API client built on URLSession (iOS 15+) with typed methods for each CRUD operation per content type, pagination support, and error handling. The SDK version is tied to a schema hash, so clients can detect when their SDK is stale. Distribution supports both SPM and CocoaPods. A separate cms generate-sdk typescript command generates TypeScript type definitions for web frontend teams sharing the same CMS. 
+Static JSON Export for Offline-First Apps 
+The cms export command generates static JSON bundles from the live database, organized as /bundles/{locale}/{contentType}/{slug}.json. These bundles can be embedded directly in iOS app bundles for offline-first content delivery, eliminating network dependencies for content-heavy apps like reference guides, educational materials, catalogs, or documentation. The export respects content lifecycle (only published entries are exported), locale-aware (generates per-locale bundles), and supports incremental export via a --since flag that only includes entries modified after a given timestamp. A companion ExportManifest.json file lists all exported entries with content hashes, enabling efficient delta updates in the iOS app. 
+Shared Types Across Server and Client 
+The CMSObjects package is designed as a standalone SPM package that can be imported by both the Vapor server and iOS/macOS client apps. This means the API response DTOs (ContentEntryDTO, PaginationWrapper, ApiError) are the exact same Swift types on both sides of the network, providing compile-time guarantees that request and response formats match. This eliminates an entire category of integration bugs and is impossible to achieve with Strapi’s JavaScript backend serving Swift frontends. 
+ 
+Plugin API Specification 
+The review correctly noted that SPM modules alone do not constitute a plugin system — plugins need explicit APIs for registering routes, hooking into lifecycle events, and extending the admin UI. SwiftCMS defines three extension points. 
+The CMSModule Protocol 
+Every plugin implements the CMSModule protocol, which defines a structured lifecycle. The name property provides a unique string identifier. The priority property (Int, default 0) controls boot order. The register(app:) method runs first and is used to register services, configure dependencies, and declare capabilities (no database access available). The boot(app:) method runs after all modules register and has full access to the database, event bus, and other modules (this is where routes, hooks, and admin pages are set up). The shutdown(app:) method handles cleanup when the server stops. 
+Route Registration 
+During boot(), plugins register routes through a RoutesBuilder passed as a parameter. Routes are automatically namespaced under /api/v1/plugins/{module-name}/ for API endpoints and /admin/plugins/{module-name}/ for admin pages. Plugins can also extend existing content type endpoints by registering middleware that runs before or after the generic content controllers. For example, an SEO plugin might register afterRead middleware that appends computed meta tags to every content entry response. 
+Event Hook Registration 
+Plugins subscribe to EventBus events during boot() to react to content lifecycle changes. The subscription API is type-safe: eventBus.subscribe(ContentCreatedEvent.self) { event, context in ... }. Plugins can also fire custom events that other plugins can subscribe to, enabling plugin-to-plugin communication without direct dependencies. The core defines hook points at beforeSave, afterSave, beforeDelete, afterDelete, beforePublish, afterPublish, onSchemaChange, and onUserLogin. Each hook receives a mutable context that allows plugins to modify data in transit (beforeSave hooks can transform content before it reaches the database). 
+Admin UI Extension 
+Plugins extend the admin panel through three mechanisms. First, navigation items: during boot(), plugins register sidebar menu entries with an icon, label, and target URL. Second, dashboard widgets: plugins provide Leaf template fragments rendered in designated widget zones on the admin dashboard (similar to Strapi’s injection zones). Third, content type field extensions: plugins can register custom field types that appear in the content type builder’s field picker, each providing a JSON Schema fragment for storage, an admin form widget for editing, and a display component for the content listing. 
+Example Plugin: SEO Module 
+The SEO module ships as an example plugin demonstrating all three extension points. It registers a /admin/plugins/seo/ admin page for configuring global meta tag templates. It subscribes to afterSave events to auto-generate meta descriptions using the first 160 characters of a designated field. It registers a custom “SEO” field type that adds meta_title, meta_description, and og_image fields as a grouped component. It generates /sitemap.xml and /robots.txt endpoints. And it adds a dashboard widget showing SEO coverage (percentage of entries with filled meta fields). 
+ 
+Database Design 
+Core System Tables 
+Table 
+Purpose 
+Key Columns 
+users 
+Admin/API accounts 
+id, email, password_hash, display_name, role_id, auth_provider, external_id, tenant_id 
+roles 
+RBAC role definitions 
+id, name, slug, description, is_system, tenant_id 
+permissions 
+Per-role, per-type permissions 
+id, role_id, content_type_slug, action (create/read/update/delete/publish/configure) 
+api_keys 
+Machine-to-machine tokens 
+id, name, key_hash, permissions (JSONB), last_used_at, expires_at, tenant_id 
+media_files 
+Uploaded media metadata 
+id, filename, mime_type, size_bytes, storage_path, provider, alt_text, metadata (JSONB), tenant_id 
+webhooks 
+Event webhook config 
+id, name, url, events (JSONB array), headers (JSONB), secret, enabled, retry_count, tenant_id 
+webhook_deliveries 
+Delivery audit log 
+id, webhook_id, event, payload (JSONB), idempotency_key, response_status, attempts, delivered_at 
+dead_letter_entries 
+Failed jobs (DLQ) 
+id, job_type, payload (JSONB), failure_reason, retry_count, first_failed_at, last_failed_at 
+audit_log 
+Content mutation audit trail 
+id, entry_id, content_type, action, user_id, before_data (JSONB), after_data (JSONB), tenant_id, created_at 
+ 
+Dynamic Content Tables 
+Table 
+Purpose 
+Key Columns 
+content_type_definitions 
+Schema registry 
+id, name, slug (unique), display_name, kind (collection/single), json_schema (JSONB), field_order (JSONB), settings (JSONB), tenant_id, created_at, updated_at 
+content_entries 
+All dynamic content 
+id, content_type (FK to slug), data (JSONB), status, locale, publish_at, unpublish_at, created_by, updated_by, tenant_id, created_at, updated_at, published_at, deleted_at (soft delete) 
+content_versions 
+Version history 
+id, entry_id, version (auto-increment per entry), data (JSONB), changed_by, created_at 
+ 
+Index Strategy 
+The content_entries table requires four types of indexes. A GIN index on the data JSONB column enables containment queries across all fields. A composite B-tree index on (tenant_id, content_type) accelerates tenant-scoped per-type listing queries. Expression indexes on frequently queried JSONB fields (e.g., CREATE INDEX idx_entries_title ON content_entries ((data-&gt;&gt;&apos;title&apos;))) bring specific-field lookups to near-native-column performance. A partial index on published entries (WHERE status = &apos;published&apos; AND deleted_at IS NULL) optimizes the most common public API query. Index creation for expression indexes is managed through the admin panel, where administrators can mark fields as indexed. 
+ 
+Technology Stack 
+Layer 
+Technology 
+Version / Notes 
+Language 
+Swift 5.10+ 
+Swift 6 concurrency, Sendable enforcement 
+HTTP Server 
+Vapor 4.x 
+SSWG Graduated, ~9–10K req/sec 
+ORM 
+Fluent 4.x 
+fluent-postgres-driver + fluent-sqlite-driver 
+Database 
+PostgreSQL 16+ 
+JSONB + GIN indexes (production); SQLite (development) 
+Cache / Queues / Sessions 
+Redis 7+ 
+Vapor redis (RediStack), queues-redis-driver 
+Auth Primary 
+Auth0 
+JWKS + jwt-kit v5.0.0, native RBAC + Organizations 
+Auth Secondary 
+Firebase Auth 
+Manual JWT verify, custom claims mapping 
+Auth Tertiary 
+Local JWT 
+Self-issued tokens, DB-backed roles (air-gapped deploys) 
+GraphQL Schema 
+Graphiti v3.0.0 
+557 stars, result-builder DSL, subscriptions 
+GraphQL Server 
+Pioneer 
+496 commits, WebSocket, GraphiQL IDE 
+Admin Templating 
+Leaf 
+Vapor’s native engine, VaporHX bridge for HTMX 
+Admin Interactivity 
+HTMX + Alpine.js 
+SortableJS (drag-drop), TipTap (rich text) 
+Admin Styling 
+Tailwind CSS + DaisyUI 
+CDN-loaded, no build step, dark mode support 
+JSON Validation 
+JSONSchema.swift 
+kylef/JSONSchema.swift, Draft 4/6/7 
+File Storage 
+Soto v7.0.0 
+AWS SDK for S3 + local filesystem driver 
+Search 
+Meilisearch 
+Official Swift client, sub-50ms queries 
+Background Jobs 
+Vapor Queues 
+Redis driver, exponential retry, DLQ 
+Event Bus 
+Redis Streams (multi-instance) / In-process (single) 
+Typed events, replay capability 
+Rate Limiting 
+Gatekeeper 
+IP-based, Redis-backed, per-role tiers 
+Observability 
+swift-otel v1.0 
+OpenTelemetry metrics + tracing via OTLP/gRPC 
+Logging 
+swift-log + Loki 
+Structured JSON logging, centralized aggregation 
+CLI 
+ArgumentParser v1.5.0 
+Scaffolding, codegen, migration, import, export 
+Deployment 
+Docker + Kubernetes 
+Multi-stage build, HPA, ~200MB runtime image 
+ 
+Multi-Agent Wave Implementation Strategy 
+The project is constructed through 4 development waves, each deploying 8 parallel AI coding agents working simultaneously via git worktrees. The review suggested this section belongs in an internal roadmap rather than a public-facing document. Agreed — this section is for internal planning only and will not appear in the open-source README or public documentation. 
+Orchestration Model 
+Each wave follows a consistent pattern: a lead orchestrator creates a tasks.md planning document decomposing the wave into 8 independent work packages with strict module ownership. Eight git worktrees are created (one per agent). Each agent receives its work package, the architectural planning document, and strict instructions not to modify files outside its assigned directory. Agents work in parallel for 1–2 weeks. A designated integration agent (Agent 8) merges all branches, resolves interface mismatches, and runs the full test suite. The orchestrator performs human review before merging to main. 
+Key infrastructure: each worktree gets its own .build directory. A shared Docker Compose provides per-agent database instances via port offsets (agent 1: PostgreSQL on 5432, agent 2: 5433, etc.). Environment files (.env.agent-N) configure each agent’s connections. The coderabbitai/git-worktree-runner tool automates worktree creation and configuration copying. 
+ 
+  WAVE 1 — Foundation &amp; Core Infrastructure (Weeks 1–3) 
+Establishes the project skeleton, database layer, module system, auth infrastructure, and DevOps pipeline. By wave end: server boots, authenticates via Auth0, and responds to health checks. 
+Agent 
+Module Ownership 
+Key Deliverables 
+1: Project Bootstrap 
+Sources/App, Package.swift, root config 
+SPM manifest with all deps, Vapor config, .env loading, DB + Redis connections, Docker Compose (PostgreSQL + Redis + Meilisearch) 
+2: Core Module System 
+Sources/CMSCore 
+CMSModule protocol (register/boot/shutdown lifecycle), typed Hook registry, module manager with priority ordering, Application storage keys for DI 
+3: Database Models 
+Sources/CMSSchema/Models + Migrations 
+Fluent models for all system tables (users, roles, permissions, api_keys, media_files, webhooks, audit_log, dead_letter_entries), content_type_definitions + content_entries with JSONB, GIN + B-tree indexes, seed migration for default roles + admin user 
+4: Auth0 Provider 
+Sources/CMSAuth 
+AuthProvider protocol, Auth0Provider (JWKS + jwt-kit), FirebaseProvider stub, LocalJWTProvider stub, RBAC middleware, session auth middleware, API key middleware 
+5: Shared DTOs 
+Sources/CMSObjects 
+ContentTypeDefinitionDTO, ContentEntryDTO, UserDTO, RoleDTO, PermissionDTO, MediaFileDTO, PaginationWrapper, ApiError types with structured error codes 
+6: EventBus + Events 
+Sources/CMSEvents 
+EventBus protocol, InProcessEventBus implementation, RedisStreamsEventBus implementation, Core event type definitions (content.created/updated/deleted/published, schema.changed, user.login), CmsContext type 
+7: Docker &amp; CI/CD 
+Dockerfile, k8s/, .github/ 
+Multi-stage Dockerfile, K8s manifests (Deployment, Service, HPA, ConfigMap, Secret), GitHub Actions CI (Swift Linux build + test), health check endpoints, Makefile 
+8: Integration + Tests 
+Tests/ 
+XCTest infra, test DB config, unit test stubs per module, integration test (boot + health + auth), test fixtures/factories, merge all 7 branches + validate full build 
+ 
+Wave 1 Exit: Server boots → connects PostgreSQL + Redis → authenticates Auth0 JWT → 200 on /healthz → module system registers test module → EventBus publishes + receives test event → Docker build passes → CI green. 
+ 
+  WAVE 2 — Content Engine &amp; API Layer (Weeks 4–6) 
+The critical wave. SwiftCMS becomes a functional headless CMS. Content type engine, REST API, admin panel, media library, search, webhooks, and background jobs are built in parallel. 
+Agent 
+Module Ownership 
+Key Deliverables 
+1: Content Type Engine 
+Sources/CMSSchema/Engine 
+JSON Schema generation from field definitions, validation service (kylef/JSONSchema.swift), content type CRUD service, schema change event dispatch, field type registry (14 field types), relation resolution service 
+2: REST API Controllers 
+Sources/CMSApi/REST 
+DynamicContentController (/:contentType with list/create/read/update/delete), ContentTypeController, query params (pagination, filtering, sorting, field selection, populate for relations), API versioning (/api/v1/) 
+3: Admin Panel Core 
+Sources/CMSAdmin, Resources/Views/ 
+Leaf base layout (sidebar, Tailwind + DaisyUI, HTMX), VaporHX config, dashboard, content type builder (Alpine.js + SortableJS drag-drop), content listing + edit forms (dynamically generated from JSON Schema), session auth 
+4: Media Library 
+Sources/CMSMedia 
+FileStorageProvider protocol (local + S3 via Soto), multipart upload, metadata extraction, thumbnail job (Vapor Queues), media browser admin page (grid/list/search/upload modal), signed URLs 
+5: Firebase + Local Auth 
+Sources/CMSAuth/Firebase + Local 
+FirebaseProvider full impl (X.509 cert fetch, cache refresh, JWT verify, custom claims), LocalJWTProvider impl (self-issued tokens, bcrypt passwords), admin login page with provider selection, user management admin pages 
+6: Search Integration 
+Sources/CMSSearch 
+Meilisearch wrapper, auto-index on schema create via hooks, content sync on CRUD via hooks, search endpoint (/api/v1/search), configurable searchable fields per type, admin global search (HTMX) 
+7: Webhooks + Jobs 
+Sources/CMSWebhooks, Sources/CMSJobs 
+Vapor Queues config, webhook dispatch job (HMAC-SHA256 signed, exponential backoff, 5 retries), DLQ processing, webhook admin pages (CRUD, test fire, delivery log), media processing job, search reindex job, scheduled publish checker job 
+8: Integration + Tests 
+Tests/ 
+Content type CRUD e2e tests, REST API e2e with auth, media upload tests, webhook delivery tests, admin smoke tests, perf baseline (10K entries), merge all branches 
+ 
+Wave 2 Exit: Create “Blog Post” type with title/body/featured_image via admin → 3 entries via REST → paginated list at /api/v1/blog-posts → image upload + attach → search at /api/v1/search?q=hello → webhook fires on create → DLQ captures simulated failure. 
+ 
+  WAVE 3 — Production Readiness (Weeks 7–10) 
+Hardens the system for production. GraphQL, content lifecycle (draft/publish/scheduled), relations, i18n, caching, security, observability, and load testing. 
+Agent 
+Module Ownership 
+Key Deliverables 
+1: GraphQL API 
+Sources/CMSApi/GraphQL 
+Graphiti schema auto-gen from type defs, Pioneer integration (HTTP + WebSocket), query/mutation/subscription resolvers, GraphiQL IDE at /graphql/ide, schema regeneration on type change via hook 
+2: Content Lifecycle 
+Sources/CMSSchema/Workflow 
+State machine (draft/review/published/archived/deleted), scheduled publishing (publish_at + unpublish_at via background job), content preview endpoint (draft + preview token), soft deletes, admin status controls 
+3: Relations 
+Sources/CMSSchema/Relations 
+hasOne/hasMany/manyToMany implementation, populate query param for nested resolution, circular detection + depth limit, relation picker admin widget (HTMX entity search), cascade options (restrict/set null/cascade), reverse relation queries 
+4: i18n 
+Sources/CMSSchema/I18n 
+Locale-aware entries (locale column), per-type locale config, API ?locale= param with fallback chain, translation admin UI (side-by-side), locale management page, Accept-Language auto-detection 
+5: Caching + Performance 
+Middleware/Cache 
+Redis response cache with per-type TTL, cache invalidation via hooks on mutation, ETag + 304 conditional responses, eager loading for relations, connection pool tuning config, CDN-friendly cache headers, swift-otel custom metrics 
+6: Security + Observability 
+Middleware/Security 
+CORS config, CSP headers, input sanitization, Gatekeeper rate limiting (60/300/unlimited per role), audit log writes on all mutations, HSTS, X-Frame-Options, request ID middleware, swift-otel tracing + Prometheus metrics, Loki log shipping 
+7: Admin Panel Polish 
+Sources/CMSAdmin (refinements) 
+Dark mode, responsive mobile, keyboard shortcuts, bulk operations (multi-select publish/delete), content type import/export JSON, activity dashboard, role + permission management UI 
+8: Load Testing 
+Tests/, Benchmarks/ 
+wrk/k6 load suite (1000 req/sec target), 50 concurrent writer stress test, GraphQL depth limiting tests, full RBAC permission matrix test, migration path test (empty to populated), dependency security audit, CI parallel test shards 
+ 
+Wave 3 Exit: GraphQL queries + subscriptions work → blog posts have draft/published with scheduled publish → articles reference authors (relation) → content in en-US + es-MX → cached reads &lt;50ms p99 → rate limiting blocks abuse → load test passes 1000 req/sec → audit log captures all mutations. 
+ 
+  WAVE 4 — Ecosystem &amp; Developer Experience (Weeks 11–14) 
+Developer experience, community enablement, and Apple-specific differentiators. SDK generation, plugin marketplace, Strapi migration, versioning, real-time WebSocket, static export, and documentation. 
+Agent 
+Module Ownership 
+Key Deliverables 
+1: Client SDK Generator 
+Sources/CMSCLI/Codegen 
+&apos;cms generate-sdk swift&apos;: Codable models + async URLSession client per content type, &apos;cms generate-sdk typescript&apos;: TS type defs, SDK versioning by schema hash, README generation, SPM + CocoaPods support 
+2: Plugin Marketplace 
+Modules/, Sources/CMSCore/Plugins 
+Plugin manifest spec (plugin.json), discovery + validation on boot, plugin admin page, remote registry API spec, example: SEO module (sitemap, robots.txt, meta tags), example: Analytics module (views, popular content) 
+3: Strapi Migration Tool 
+Sources/CMSCLI/Migration 
+&apos;cms import-strapi path/&apos;: reads schema.json, converts to SwiftCMS type defs, migrates content data (JSON export), media file migration, user/role mapping, migration report, rollback via snapshots 
+4: Content Versioning 
+Sources/CMSSchema/Versioning 
+Version on every update (content_versions table), version list/get/restore API, admin version history page with visual diff, configurable retention (max versions + max age), pruning background job, version-aware webhooks 
+5: WebSocket + Static Export 
+Sources/App/WebSocket, CMSCLI/Export 
+WebSocket server for real-time content events (/ws), admin real-time notifications (HTMX SSE), &apos;cms export --format=static-json&apos;: locale-aware JSON bundles for offline iOS apps, ExportManifest.json with content hashes, incremental --since flag 
+6: Advanced Admin 
+Sources/CMSAdmin/Advanced 
+Content type duplication, field-level permissions UI, dashboard chart widgets (Chart.js), embedded Swagger UI at /admin/api-explorer, saved filter/sort presets, admin branding customization (logo, colors) 
+7: Documentation 
+README.md, docs/, examples/ 
+README with quick start + architecture, comprehensive guides (install, config, types, auth, deploy, plugins), auto-gen API reference from OpenAPI, examples (blog + SwiftUI, e-commerce catalog, multi-lang site), contributing guide 
+8: Release Engineering 
+Tests/, Scripts/, .github/ 
+Final merge all Wave 4, e2e test suite (full user journey), release automation (semver, changelog), Homebrew formula for CLI, DocC API reference, performance regression tests, v1.0.0 tag + release notes 
+ 
+Wave 4 Exit: &apos;cms generate-sdk swift&apos; compiles → Strapi import works on sample project → SEO plugin installs and functions → versions show diffs → WebSocket delivers live updates → static export bundles for iOS → docs cover all features → v1.0.0 tagged and released. 
+ 
+Risk Assessment &amp; Mitigation 
+Risk 
+Severity 
+Probability 
+Mitigation Strategy 
+Dynamic schema performance at scale 
+High 
+Medium 
+GIN indexes + expression indexes on hot fields. Benchmark during Wave 3 with 10K+ entries per type. Materialization path to dedicated tables for content types exceeding 1M entries (Phase 3 optimization). 
+Auth provider vendor lock-in 
+Medium 
+Low 
+AuthProvider protocol abstraction ships with 3 providers (Auth0, Firebase, Local JWT). Provider switch requires only environment variable change + user migration script. 
+Agent merge conflicts during parallel dev 
+Medium 
+Medium 
+Strict module boundaries (each agent owns a directory). Pre-defined interface contracts in tasks.md. Dedicated integration agent per wave. Max 8 agents with zero cross-module edits. 
+Swift ecosystem maturity gaps 
+Medium 
+High 
+All dependencies are SSWG Graduated or 500+ star community projects. Fallback to raw SQLKit for anything Fluent can’t handle. No dependency on experimental or pre-1.0 packages. 
+Plugin ecosystem adoption 
+Medium 
+High 
+Ship 2 example plugins (SEO, Analytics) at launch. Plugin development guide with video walkthrough. Plugin API designed for simplicity (implement 1 protocol, get 3 extension points). 
+Solo maintainer burnout 
+High 
+High 
+Multi-agent development produces code faster than solo dev, creating momentum. Plugin architecture enables contributions without core changes. Comprehensive docs lower onboarding barrier. Explicitly recruit co-maintainers before v1.0. 
+Admin panel interactivity limits (HTMX) 
+Low 
+Medium 
+HTMX handles 80-90% of needs. JavaScript islands (Alpine.js + SortableJS + TipTap) cover the rest. If HTMX proves insufficient, swap admin to React SPA consuming same API (no backend changes needed). 
+Firebase’s lack of server-side Swift SDK 
+Low 
+Low 
+Manual JWT verification is well-documented. Unofficial firebase-admin-swift package available. The pluggable auth abstraction means Firebase is optional, not required. 
+PostgreSQL JSONB vs. native columns debate 
+Medium 
+Medium 
+JSONB with GIN indexes benchmarks within 5-15% of native columns. Expression indexes close the gap further. Materialization path available for truly high-traffic types. Document the tradeoff explicitly. 
+Scope creep within waves 
+Medium 
+High 
+Each wave has explicit exit criteria. Features failing quality standards are deferred (not blocked). Wave 4 is explicitly the “nice to have” wave; cutting it entirely still produces a viable CMS. 
+ 
+Timeline &amp; Milestone Summary 
+Phase 
+Weeks 
+Milestone 
+Key Deliverable 
+Wave 1: Foundation 
+1–3 
+Server boots with auth + modules + EventBus 
+Vapor + PostgreSQL + Redis + Auth0 + CMSModule lifecycle + EventBus 
+Wave 2: Content Engine 
+4–6 
+Functional headless CMS 
+Content types + REST API + admin panel + media + search + webhooks + DLQ 
+Wave 3: Production 
+7–10 
+Production-grade system 
+GraphQL + lifecycle states + i18n + caching + security + observability + load tests 
+Wave 4: Ecosystem 
+11–14 
+Developer platform 
+SDK codegen + plugins + Strapi migration + versioning + WebSocket + static export + docs 
+Stabilization 
+15–16 
+v1.0.0 release 
+Bug fixes, performance tuning, documentation review, community launch prep 
+Post-Launch 
+17–20 
+Community growth 
+Plugin ecosystem seeding, conference talks, hackathon demos, feedback iteration 
+ 
+Deferred to Post-v1.0 
+Feature 
+Reason 
+Estimated Post-v1.0 Effort 
+SSO / SAML in core 
+Handled by Auth0 at provider level 
+2–3 weeks 
+Field-level permissions 
+Role-level sufficient for MVP 
+2 weeks 
+Approval workflow chains 
+Enterprise feature, custom state machines per org 
+3–4 weeks 
+Collaborative real-time editing 
+Requires CRDT/OT (enormous complexity) 
+8–12 weeks 
+Custom field type plugins 
+Requires stable field API; premature to lock in v1.0 
+2–3 weeks 
+A/B content testing 
+Niche feature requiring analytics integration 
+3–4 weeks 
+GraphQL federation 
+Requires multi-service architecture 
+3–4 weeks 
+Serverless (Lambda) 
+Lambda bridge not production-ready 
+Blocked on upstream 
+Native SwiftUI macOS admin 
+Web admin covers all use cases 
+6–10 weeks 
+Edge deployment (Cloudflare Workers) 
+Requires Swift-to-WASM compilation maturity 
+Exploratory 
+ 
+Appendix: Lessons from Prior Swift CMS Projects 
+Two prior attempts at building a Swift CMS provide critical lessons that directly informed SwiftCMS’s design. 
+Pigeon CMS (2019, Abandoned — 16 stars, 30 commits) 
+Created by Hal Lee on Vapor/Swift 4.2. Innovative concept: type-safe server-client bridge via shared Codable structs as Swift packages. Planned dual JSON + GraphQL endpoints. Fatal flaw: content types required recompilation to change. SwiftCMS adopts the shared-types vision via auto-generated client SDK packages while solving runtime flexibility through JSONB storage. 
+Feather CMS (2020–2023, Stalled — 601 stars, 22 repos) 
+Created by Tibor Bodecs (Swift Server Workgroup member). Best contributions: hook-based module system (adopted in SwiftCMS), DTO separation into dedicated packages (adopted), Liquid file storage abstraction (pattern adopted via FileStorageProvider). Fatal flaws: fragmented across 22 separate repositories, perpetual rewrite cycle (Leaf to SwiftHtml, exploring Hummingbird migration), template-first rather than headless-first. Creator shifted to Toucan static site generator due to solo-maintainer complexity. 
+Patterns Adopted vs. Avoided 
+Decision 
+Adopted From 
+Avoided From 
+Module system 
+Feather: hook-based FeatherModule protocol 
+— 
+DTO separation 
+Feather: dedicated objects packages 
+— 
+Type-safe client bridge 
+Pigeon: shared Codable structs 
+Pigeon: compile-time-only types 
+Content type flexibility 
+— 
+Both: required recompilation 
+Repository structure 
+— 
+Feather: 22 separate repos 
+Product positioning 
+— 
+Feather: template-first CMS 
+Sustainability model 
+— 
+Both: solo maintainer 
+ 
+— End of Document — 
+SwiftCMS Master Plan V2 • February 2026 • Incorporating Staff+ Architecture Review 

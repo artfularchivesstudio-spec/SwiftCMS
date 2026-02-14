@@ -128,15 +128,80 @@ public struct VersionService: Sendable {
                     "type": "removed",
                     "value": fromVal ?? .null
                 ])
-            } else if fromVal != toVal {
-                changes[key] = .dictionary([
-                    "type": "changed",
-                    "from": fromVal ?? .null,
-                    "to": toVal ?? .null
-                ])
+            } else if fromVal != nil && toVal != nil && fromVal != toVal {
+                // Check for nested objects/arrays
+                changes[key] = computeNestedDiff(from: fromVal!, to: toVal!)
             }
         }
 
         return .dictionary(changes)
+    }
+
+    /// Compute diff for nested values (objects or arrays)
+    private static func computeNestedDiff(
+        from: AnyCodableValue,
+        to: AnyCodableValue
+    ) -> AnyCodableValue {
+        // Handle dictionary diff
+        if let fromDict = from.dictionaryValue,
+           let toDict = to.dictionaryValue {
+            return computeDiff(from: from, to: to)
+        }
+
+        // Handle array diff
+        if let fromArray = from.arrayValue,
+           let toArray = to.arrayValue {
+            return computeArrayDiff(from: fromArray, to: toArray)
+        }
+
+        // Simple value change
+        return .dictionary([
+            "type": "changed",
+            "from": from,
+            "to": to
+        ])
+    }
+
+    /// Compute diff for arrays
+    private static func computeArrayDiff(
+        from: [AnyCodableValue],
+        to: [AnyCodableValue]
+    ) -> AnyCodableValue {
+        let maxLength = max(from.count, to.count)
+        var changes: [Int: AnyCodableValue] = [:]
+
+        for i in 0..<maxLength {
+            if i >= from.count {
+                // Added item
+                changes[i] = .dictionary([
+                    "type": "added",
+                    "value": to[i]
+                ])
+            } else if i >= to.count {
+                // Removed item
+                changes[i] = .dictionary([
+                    "type": "removed",
+                    "value": from[i]
+                ])
+            } else if from[i] != to[i] {
+                // Changed item
+                changes[i] = computeNestedDiff(from: from[i], to: to[i])
+            }
+        }
+
+        // Convert dictionary to array format
+        var result: [AnyCodableValue] = []
+        for i in 0..<maxLength {
+            if let change = changes[i] {
+                result.append(change)
+            } else {
+                result.append(.dictionary(["type": "unchanged"]))
+            }
+        }
+
+        return .dictionary([
+            "type": "array_changed",
+            "changes": .array(result)
+        ])
     }
 }

@@ -8,6 +8,7 @@ import CMSEvents
 /// SEO plugin: sitemap, robots.txt, meta tag management.
 public struct SEOModule: CmsModule {
     public let name = "seo"
+    public let version = "1.0.0"
     public let priority = 100
 
     public init() {}

@@ -13,7 +13,16 @@
                 <td><a href="/admin/content/#(type.slug)" class="link link-primary">#(type.displayName)</a></td>
                 <td><code>#(type.slug)</code></td>
                 <td><span class="badge badge-sm">#(type.kind)</span></td>
-                <td><a href="/admin/content/#(type.slug)" class="btn btn-ghost btn-xs">Manage</a></td>
+                <td class="flex gap-1">
+                    <a href="/admin/content/#(type.slug)" class="btn btn-ghost btn-xs">Manage</a>
+                    <form method="POST" action="/admin/content-types/#(type.id)/duplicate" class="inline">
+                        <button type="submit"
+                                class="btn btn-ghost btn-xs text-success"
+                                onclick="return confirm('Duplicate this content type?')">
+                            Duplicate
+                        </button>
+                    </form>
+                </td>
             </tr>
             #endfor
         </tbody>

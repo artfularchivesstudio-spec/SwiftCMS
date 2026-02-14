@@ -1,0 +1,7 @@
+Developer platform
+SDK codegen + plugins + Strapi migration + versioning + WebSocket + static export + docs
+Stabilization
+15–16
+v1.0.0 release
+Bug fixes, performance tuning, documentation review, community launch prep
+Post-Launch

@@ -6,6 +6,7 @@ import CMSSchema
 import CMSObjects
 import CMSAuth
 import CMSEvents
+import CMSMedia
 
 // MARK: - Admin Controller
 
@@ -27,6 +28,7 @@ public struct AdminController: RouteCollection, Sendable {
         let protected = admin.grouped(SessionAuthRedirectMiddleware())
         protected.get(use: dashboard)
         protected.get("content-types", use: contentTypes)
+        protected.post("content-types", ":id", "duplicate", use: duplicateContentType)
         protected.get("content-types", "new", use: contentTypeBuilder)
         protected.get("content", ":contentType", use: contentList)
         protected.get("content", ":contentType", "new", use: contentEdit)
@@ -46,6 +48,17 @@ public struct AdminController: RouteCollection, Sendable {
         protected.post("webhooks", ":webhookId", "toggle", use: toggleWebhook)
         protected.post("users", use: createUser)
         protected.post("users", ":userId", "delete", use: deleteUser)
+
+        // Admin search (HTMX)
+        protected.get("search", use: adminSearch)
+
+        // Webhook edit/deliveries
+        protected.get("webhooks", "new", use: webhookEdit)
+        protected.get("webhooks", ":webhookId", "edit", use: webhookEdit)
+        protected.get("webhooks", ":webhookId", "deliveries", use: webhookDeliveries)
+
+        // Media upload via admin form
+        protected.on(.POST, "media", "upload", body: .collect(maxSize: "50mb"), use: adminMediaUpload)
     }
 
     // MARK: - Dashboard
@@ -100,6 +113,51 @@ public struct AdminController: RouteCollection, Sendable {
     }
 
     @Sendable
+    func duplicateContentType(req: Request) async throws -> Response {
+        guard let typeId = req.parameters.get("id", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        // Fetch original content type
+        guard let originalType = try await ContentTypeDefinition.find(typeId, on: req.db) else {
+            throw Abort(.notFound)
+        }
+
+        // Generate unique name and slug
+        let baseName = "\(originalType.displayName) Copy"
+        let baseSlug = "\(originalType.slug)-copy"
+
+        var newName = baseName
+        var newSlug = baseSlug
+        var counter = 1
+
+        // Check for existing duplicates and generate unique names
+        while try await ContentTypeDefinition.query(on: req.db)
+            .filter(\.$slug == newSlug)
+            .first() != nil {
+            counter += 1
+            newName = "\(baseName) \(counter)"
+            newSlug = "\(baseSlug)-\(counter)"
+        }
+
+        // Create duplicate content type
+        let duplicatedType = ContentTypeDefinition(
+            name: newName,
+            slug: newSlug,
+            displayName: newName,
+            description: originalType.description,
+            kind: ContentTypeKind(rawValue: originalType.kind) ?? .collection,
+            jsonSchema: originalType.jsonSchema,
+            fieldOrder: originalType.fieldOrder,
+            settings: originalType.settings
+        )
+
+        try await duplicatedType.save(on: req.db)
+
+        return req.redirect(to: "/admin/content-types")
+    }
+
+    @Sendable
     func contentTypeBuilder(req: Request) async throws -> View {
         struct Context: Encodable {
             let title: String
@@ -141,23 +199,49 @@ public struct AdminController: RouteCollection, Sendable {
             .filter(\.$deletedAt == nil)
             .count()
 
-        struct Context: Encodable {
-            let title: String
-            let contentType: ContentTypeDefinition
-            let entries: [ContentEntry]
-            let page: Int
-            let totalPages: Int
-            let activePage: String
-        }
+        // Get user's role and permissions
+        if let user = req.auth.get(User.self) {
+            try await user.$role.load(on: req.db)
+            let permissions = try await user.role.$permissions.get(on: req.db)
 
-        return try await req.view.render("admin/content/list", Context(
-            title: typeDef.displayName,
-            contentType: typeDef,
-            entries: entries,
-            page: page,
-            totalPages: max(1, Int(ceil(Double(total) / 25.0))),
-            activePage: "content"
-        ))
+            struct Context: Encodable {
+                let title: String
+                let contentType: ContentTypeDefinition
+                let entries: [ContentEntry]
+                let page: Int
+                let totalPages: Int
+                let activePage: String
+                let userPermissions: [Permission]
+            }
+
+            return try await req.view.render("admin/content/list", Context(
+                title: typeDef.displayName,
+                contentType: typeDef,
+                entries: entries,
+                page: page,
+                totalPages: max(1, Int(ceil(Double(total) / 25.0))),
+                activePage: "content",
+                userPermissions: permissions
+            ))
+        } else {
+            struct Context: Encodable {
+                let title: String
+                let contentType: ContentTypeDefinition
+                let entries: [ContentEntry]
+                let page: Int
+                let totalPages: Int
+                let activePage: String
+            }
+
+            return try await req.view.render("admin/content/list", Context(
+                title: typeDef.displayName,
+                contentType: typeDef,
+                entries: entries,
+                page: page,
+                totalPages: max(1, Int(ceil(Double(total) / 25.0))),
+                activePage: "content"
+            ))
+        }
     }
 
     @Sendable
@@ -541,6 +625,159 @@ public struct AdminController: RouteCollection, Sendable {
 
         try await user.delete(on: req.db)
         return req.redirect(to: "/admin/users")
+    }
+
+    // MARK: - Admin Search
+
+    /// GET /admin/search?q=query
+    /// Returns HTMX partial with search results dropdown.
+    @Sendable
+    func adminSearch(req: Request) async throws -> Response {
+        guard let query = req.query[String.self, at: "q"], !query.isEmpty else {
+            return Response(status: .ok, body: .init(string: ""))
+        }
+
+        let lowered = query.lowercased()
+
+        // Search content entries by matching data fields
+        let entries = try await ContentEntry.query(on: req.db)
+            .filter(\.$deletedAt == nil)
+            .limit(10)
+            .all()
+
+        // Filter entries that match the query in their data
+        let matchingEntries = entries.filter { entry in
+            if let dict = entry.data.dictionaryValue {
+                return dict.values.contains { value in
+                    if let str = value.stringValue {
+                        return str.lowercased().contains(lowered)
+                    }
+                    return false
+                }
+            }
+            return false
+        }.prefix(5)
+
+        // Search content types by name
+        let types = try await ContentTypeDefinition.query(on: req.db)
+            .all()
+        let matchingTypes = types.filter { $0.displayName.lowercased().contains(lowered) || $0.slug.lowercased().contains(lowered) }
+
+        // Build HTML response for HTMX
+        var html = "<div class=\"dropdown-content bg-base-100 rounded-box z-[1] w-96 p-4 shadow-lg absolute right-0 top-12\">"
+
+        if !matchingTypes.isEmpty {
+            html += "<h4 class=\"font-semibold text-xs text-base-content/50 mb-2\">Content Types</h4>"
+            for t in matchingTypes {
+                html += "<a href=\"/admin/content/\(t.slug)\" class=\"block p-2 hover:bg-base-200 rounded text-sm\">\(t.displayName)</a>"
+            }
+        }
+
+        if !matchingEntries.isEmpty {
+            html += "<h4 class=\"font-semibold text-xs text-base-content/50 mt-2 mb-2\">Entries</h4>"
+            for entry in matchingEntries {
+                let id = entry.id?.uuidString ?? ""
+                let ct = entry.contentType
+                let label = entry.data.dictionaryValue?.values.first(where: { $0.stringValue != nil })?.stringValue ?? id.prefix(8).description
+                html += "<a href=\"/admin/content/\(ct)/\(id)\" class=\"block p-2 hover:bg-base-200 rounded text-sm\">"
+                html += "<span class=\"badge badge-xs badge-ghost mr-1\">\(ct)</span> \(label)</a>"
+            }
+        }
+
+        if matchingTypes.isEmpty && matchingEntries.isEmpty {
+            html += "<p class=\"text-sm text-base-content/50\">No results found</p>"
+        }
+
+        html += "</div>"
+
+        let res = Response(status: .ok)
+        res.headers.contentType = .html
+        res.body = .init(string: html)
+        return res
+    }
+
+    // MARK: - Webhook Edit
+
+    /// GET /admin/webhooks/new or /admin/webhooks/:webhookId/edit
+    @Sendable
+    func webhookEdit(req: Request) async throws -> View {
+        let webhookId = req.parameters.get("webhookId", as: UUID.self)
+        let webhook: Webhook? = if let id = webhookId {
+            try await Webhook.find(id, on: req.db)
+        } else {
+            nil
+        }
+
+        struct Context: Encodable {
+            let title: String
+            let webhook: Webhook?
+            let activePage: String
+            let eventTypes: [String]
+        }
+
+        return try await req.view.render("admin/webhooks/edit", Context(
+            title: webhook != nil ? "Edit Webhook" : "New Webhook",
+            webhook: webhook,
+            activePage: "webhooks",
+            eventTypes: [
+                "content.created", "content.updated", "content.deleted",
+                "content.published", "content.stateChanged",
+                "schema.changed", "media.uploaded", "media.deleted"
+            ]
+        ))
+    }
+
+    // MARK: - Webhook Deliveries
+
+    /// GET /admin/webhooks/:webhookId/deliveries
+    @Sendable
+    func webhookDeliveries(req: Request) async throws -> View {
+        guard let webhookId = req.parameters.get("webhookId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+        guard let webhook = try await Webhook.find(webhookId, on: req.db) else {
+            throw Abort(.notFound)
+        }
+
+        let deliveries = try await WebhookDelivery.query(on: req.db)
+            .filter(\.$webhook.$id == webhookId)
+            .sort(\.$createdAt, .descending)
+            .limit(50)
+            .all()
+
+        struct Context: Encodable {
+            let title: String
+            let webhook: Webhook
+            let deliveries: [WebhookDelivery]
+            let activePage: String
+        }
+
+        return try await req.view.render("admin/webhooks/deliveries", Context(
+            title: "Deliveries - \(webhook.name)",
+            webhook: webhook,
+            deliveries: deliveries,
+            activePage: "webhooks"
+        ))
+    }
+
+    // MARK: - Admin Media Upload
+
+    /// POST /admin/media/upload (multipart form)
+    @Sendable
+    func adminMediaUpload(req: Request) async throws -> Response {
+        let upload = try req.content.decode(FileUploadDTO.self)
+        let storage = req.application.fileStorage
+        let providerName = Environment.get("STORAGE_PROVIDER") ?? "local"
+        let userId = req.auth.get(User.self)?.id?.uuidString
+        let context = CmsContext(logger: req.logger, userId: userId)
+
+        _ = try await MediaService.upload(
+            file: upload.file, storage: storage,
+            providerName: providerName,
+            on: req.db, eventBus: req.eventBus, context: context
+        )
+
+        return req.redirect(to: "/admin/media")
     }
 }
 

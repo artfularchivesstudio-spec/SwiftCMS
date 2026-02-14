@@ -93,6 +93,7 @@ public struct ContentTypeResponseDTO: Content, Sendable {
     public let fieldOrder: AnyCodableValue
     public let settings: AnyCodableValue?
     public let tenantId: String?
+    public let schemaHash: String
     public let createdAt: Date?
     public let updatedAt: Date?
 
@@ -107,6 +108,7 @@ public struct ContentTypeResponseDTO: Content, Sendable {
         fieldOrder: AnyCodableValue,
         settings: AnyCodableValue?,
         tenantId: String?,
+        schemaHash: String,
         createdAt: Date?,
         updatedAt: Date?
     ) {
@@ -120,6 +122,7 @@ public struct ContentTypeResponseDTO: Content, Sendable {
         self.fieldOrder = fieldOrder
         self.settings = settings
         self.tenantId = tenantId
+        self.schemaHash = schemaHash
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

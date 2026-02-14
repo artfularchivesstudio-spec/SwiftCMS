@@ -1,0 +1,12 @@
+#for(filter in filters):
+<li>
+    <a hx-get="/admin/content/#(filter.contentType)?#(filter.filterJSON)" hx-push-url="true">
+        #(filter.name)
+        #if(filter.isPublic):<span class="badge badge-sm badge-ghost ml-1">Public</span>#endif
+    </a>
+</li>
+#else:
+<li><a class="text-base-content/50">No saved filters</a></li>
+#endfor
+<li class="divider"></li>
+<li><a href="/saved-filters/manage">Manage all filters</a></li>

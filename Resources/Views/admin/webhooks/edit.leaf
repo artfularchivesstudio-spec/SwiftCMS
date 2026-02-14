@@ -1,0 +1,57 @@
+#extend("admin/base"):
+#export("content"):
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-semibold">#(title)</h3>
+        <a href="/admin/webhooks" class="btn btn-ghost btn-sm">Back</a>
+    </div>
+    <form method="POST" action="/admin/webhooks">
+        <div class="form-control mb-4">
+            <label class="label"><span class="label-text">Name</span></label>
+            <input type="text" name="name" class="input input-bordered" placeholder="My Webhook"
+                   value="#if(webhook):#(webhook.name)#endif" required>
+        </div>
+        <div class="form-control mb-4">
+            <label class="label"><span class="label-text">URL</span></label>
+            <input type="url" name="url" class="input input-bordered" placeholder="https://example.com/webhook"
+                   value="#if(webhook):#(webhook.url)#endif" required>
+        </div>
+        <div class="form-control mb-4">
+            <label class="label"><span class="label-text">Events</span></label>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                #for(event in eventTypes):
+                <label class="label cursor-pointer justify-start gap-2">
+                    <input type="checkbox" class="checkbox checkbox-sm checkbox-primary" value="#(event)"
+                           onchange="updateEvents(this)">
+                    <span class="label-text text-xs">#(event)</span>
+                </label>
+                #endfor
+            </div>
+            <input type="hidden" name="events" id="events-input" value="">
+        </div>
+        <div class="form-control mb-4">
+            <label class="label"><span class="label-text">Secret (auto-generated if empty)</span></label>
+            <input type="text" name="secret" class="input input-bordered font-mono"
+                   placeholder="Leave empty for auto-generated"
+                   value="#if(webhook):#(webhook.secret)#endif">
+        </div>
+        <div class="form-control mb-6">
+            <label class="label"><span class="label-text">Custom Headers (JSON, optional)</span></label>
+            <textarea name="headers" class="textarea textarea-bordered font-mono h-24"
+                      placeholder='{"X-Custom": "value"}'></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">
+            #if(webhook):Update Webhook#else:Create Webhook#endif
+        </button>
+    </form>
+</div>
+
+<script>
+function updateEvents(checkbox) {
+    const checked = document.querySelectorAll('input[type="checkbox"][onchange]:checked');
+    const events = Array.from(checked).map(cb => cb.value).join(',');
+    document.getElementById('events-input').value = events;
+}
+</script>
+#endexport
+#endextend

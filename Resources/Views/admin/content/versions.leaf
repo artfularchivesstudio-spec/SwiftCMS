@@ -44,19 +44,31 @@
         <div class="flex gap-4 mb-4">
             <select class="select select-bordered select-sm" id="diff-from">
                 #for(version in versions):
-                <option value="#(version.version)">v#(version.version)</option>
+                <option value="#(version.version)" #(isFirst(version) ? "selected" : "")>v#(version.version)</option>
                 #endfor
             </select>
             <span class="self-center">vs</span>
             <select class="select select-bordered select-sm" id="diff-to">
                 #for(version in versions):
-                <option value="#(version.version)">v#(version.version)</option>
+                <option value="#(version.version)" #(isFirst(versions.reversed()) ? "selected" : "")>v#(version.version)</option>
                 #endfor
             </select>
             <button class="btn btn-outline btn-sm" onclick="loadDiff()">Compare</button>
+            <button class="btn btn-ghost btn-sm" id="toggle-view" onclick="toggleDiffView()" style="display:none;">Toggle View</button>
         </div>
-        <div id="diff-result" class="bg-base-200 rounded p-4 font-mono text-sm hidden">
-            <!-- Diff output renders here -->
+
+        <div id="diff-result-container" class="hidden">
+            <div class="mb-2 flex justify-between items-center">
+                <span class="text-sm text-base-content/70">Visual diff with highlighting</span>
+                <div class="flex gap-4 text-xs">
+                    <span class="text-success">Added</span>
+                    <span class="text-error">Removed</span>
+                    <span class="text-base-content/60">Changed</span>
+                </div>
+            </div>
+            <div id="diff-result" class="bg-base-200 rounded p-4 font-mono text-sm min-h-[200px] max-h-[600px] overflow-y-auto">
+                <!-- Diff output renders here -->
+            </div>
         </div>
     </div>
 
@@ -64,15 +76,136 @@
 </div>
 
 <script>
+let currentDiff = null;
+let isVisualView = true;
+const contentType = "#(contentType)";
+const entryId = "#(entryId)";
+
 function loadDiff() {
     const from = document.getElementById('diff-from').value;
     const to = document.getElementById('diff-to').value;
+    const container = document.getElementById('diff-result-container');
     const el = document.getElementById('diff-result');
-    el.classList.remove('hidden');
-    el.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Loading diff...';
+    const toggleBtn = document.getElementById('toggle-view');
 
-    // In production: fetch diff from API
-    el.innerHTML = '<p class="text-base-content/60">Diff v' + from + ' → v' + to + ' (connect to live API for full diff)</p>';
+    container.classList.remove('hidden');
+    el.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Loading diff...';
+    toggleBtn.style.display = 'none';
+
+    // Make API call to get diff
+    const url = `/api/v1/${contentType}/${entryId}/versions/${from}/${to}/diff`;
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            currentDiff = data;
+            toggleBtn.style.display = 'inline-flex';
+            renderDiff();
+        })
+        .catch(error => {
+            el.innerHTML = '<div class="text-error">Error loading diff: ' + error.message + '</div>';
+        });
+}
+
+function renderDiff() {
+    if (!currentDiff) return;
+
+    const el = document.getElementById('diff-result');
+
+    if (isVisualView) {
+        el.innerHTML = renderVisualDiff(currentDiff, 0);
+    } else {
+        el.innerHTML = '<pre class="text-xs whitespace-pre-wrap">' + JSON.stringify(currentDiff, null, 2) + '</pre>';
+    }
+}
+
+function renderVisualDiff(obj, indent) {
+    if (!obj || typeof obj !== 'object') {
+        return escapeHtml(String(obj));
+    }
+
+    let html = '';
+    const spaces = '  '.repeat(indent);
+
+    if (obj.type === 'added') {
+        html += `<div class="bg-success/10 text-success">${spaces}+ ${renderValue(obj.value, indent + 1)}</div>`;
+    } else if (obj.type === 'removed') {
+        html += `<div class="bg-error/10 text-error">${spaces}- ${renderValue(obj.value, indent + 1)}</div>`;
+    } else if (obj.type === 'changed') {
+        html += `<div class="text-base-content/70">${spaces}• Changed:</div>`;
+        html += `<div class="bg-error/10 text-error ml-4">${spaces}  - ${renderValue(obj.from, indent + 2)}</div>`;
+        html += `<div class="bg-success/10 text-success ml-4">${spaces}  + ${renderValue(obj.to, indent + 2)}</div>`;
+    } else if (obj.type === 'array_changed') {
+        html += `<div class="text-base-content/70">${spaces}[Array changes:]</div>`;
+        if (obj.changes && Array.isArray(obj.changes)) {
+            obj.changes.forEach((change, idx) => {
+                if (change.type !== 'unchanged') {
+                    html += `<div class="ml-4">${spaces}[${idx}] ${renderVisualDiff(change, indent + 2)}</div>`;
+                }
+            });
+        }
+    } else if (Array.isArray(obj)) {
+        html += `<div>${spaces}[</div>`;
+        obj.forEach(item => {
+            html += `<div class="ml-4">${renderVisualDiff(item, indent + 1)}</div>`;
+        });
+        html += `<div>${spaces}]</div>`;
+    } else {
+        // Regular object - iterate through keys
+        const keys = Object.keys(obj);
+        if (keys.length === 0) {
+            html += `<div>${spaces}{ }</div>`;
+        } else {
+            html += `<div>${spaces}{</div>`;
+            keys.forEach(key => {
+                const value = obj[key];
+                if (value && typeof value === 'object' && value.type) {
+                    // This field has changes
+                    html += `<div class="ml-4">"${key}": ${renderVisualDiff(value, indent + 1)}</div>`;
+                } else if (value && typeof value === 'object') {
+                    // Nested object
+                    html += `<div class="ml-4 text-base-content/60">"${key}":</div>`;
+                    html += `<div class="ml-8">${renderVisualDiff(value, indent + 2)}</div>`;
+                } else {
+                    // Simple value
+                    html += `<div class="ml-4 text-base-content/60">"${key}": ${renderValue(value, indent + 1)}</div>`;
+                }
+            });
+            html += `<div>${spaces}}</div>`;
+        }
+    }
+
+    return html;
+}
+
+function renderValue(value, indent) {
+    if (value === null || value === undefined) {
+        return '<span class="text-base-content/50">null</span>';
+    }
+    if (typeof value === 'string') {
+        return `<span class="text-success">"${escapeHtml(value)}"</span>`;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return `<span class="text-warning">${value}</span>`;
+    }
+    if (typeof value === 'object') {
+        if (Array.isArray(value)) {
+            return `[${value.length} items]`;
+        }
+        return `{...}`;
+    }
+    return escapeHtml(String(value));
+}
+
+function toggleDiffView() {
+    isVisualView = !isVisualView;
+    renderDiff();
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 </script>
 #endexport

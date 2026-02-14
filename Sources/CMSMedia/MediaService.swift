@@ -215,8 +215,8 @@ public struct MediaController: RouteCollection, Sendable {
 }
 
 /// DTO for file uploads.
-struct FileUploadDTO: Content {
-    var file: File
+public struct FileUploadDTO: Content {
+    public var file: File
 }
 
 // MARK: - Application Storage

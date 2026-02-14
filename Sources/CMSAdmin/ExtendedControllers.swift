@@ -16,6 +16,7 @@ public struct RolesController: RouteCollection, Sendable {
         roles.get(use: list)
         roles.post(use: create)
         roles.post(":roleId", "permissions", use: updatePermissions)
+        roles.post(":roleId", "field-permissions", use: updateFieldPermissions)
     }
 
     @Sendable
@@ -26,16 +27,40 @@ public struct RolesController: RouteCollection, Sendable {
             .all()
         let types = try await ContentTypeDefinition.query(on: req.db).all()
 
+        // Load field permissions for each role
+        var fieldPermissionsByRole: [UUID: [FieldPermission]] = [:]
+        for role in roles {
+            let fieldPerms = try await FieldPermission.query(on: req.db)
+                .filter(\.$role.$id == role.id!)
+                .all()
+            fieldPermissionsByRole[role.id!] = fieldPerms
+        }
+
         struct Context: Encodable {
             let title: String
             let roles: [Role]
             let contentTypes: [ContentTypeDefinition]
+            let fieldPermissionsByRole: [String: [FieldPermission]]
             let activePage: String
+
+            init(title: String, roles: [Role], contentTypes: [ContentTypeDefinition], fieldPermissionsByRole: [UUID: [FieldPermission]], activePage: String) {
+                self.title = title
+                self.roles = roles
+                self.contentTypes = contentTypes
+                var fieldPermsDict: [String: [FieldPermission]] = [:]
+                for (roleId, perms) in fieldPermissionsByRole {
+                    fieldPermsDict[roleId.uuidString] = perms
+                }
+                self.fieldPermissionsByRole = fieldPermsDict
+                self.activePage = activePage
+            }
         }
+
         return try await req.view.render("admin/roles/list", Context(
             title: "Roles & Permissions",
             roles: roles,
             contentTypes: types,
+            fieldPermissionsByRole: fieldPermissionsByRole,
             activePage: "roles"
         ))
     }
@@ -75,6 +100,53 @@ public struct RolesController: RouteCollection, Sendable {
         for action in form.actions {
             let perm = Permission(roleID: roleId, contentTypeSlug: form.contentTypeSlug, action: action)
             try await perm.save(on: req.db)
+        }
+
+        return req.redirect(to: "/admin/roles")
+    }
+
+    @Sendable
+    func updateFieldPermissions(req: Request) async throws -> Response {
+        guard let roleId = req.parameters.get("roleId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        struct FieldPermissionForm: Content {
+            let contentTypeSlug: String
+            let fieldName: String
+            let action: String  // "read" or "edit"
+            let allowed: Bool
+        }
+        let form = try req.content.decode(FieldPermissionForm.self)
+
+        // Remove or add field permission based on allowed flag
+        if form.allowed {
+            // Check if permission already exists
+            let existing = try await FieldPermission.query(on: req.db)
+                .filter(\.$role.$id == roleId)
+                .filter(\.$contentTypeSlug == form.contentTypeSlug)
+                .filter(\.$fieldName == form.fieldName)
+                .filter(\.$action == form.action)
+                .first()
+
+            if existing == nil {
+                // Create new field permission
+                let perm = FieldPermission(
+                    roleID: roleId,
+                    contentTypeSlug: form.contentTypeSlug,
+                    fieldName: form.fieldName,
+                    action: form.action
+                )
+                try await perm.save(on: req.db)
+            }
+        } else {
+            // Remove field permission
+            try await FieldPermission.query(on: req.db)
+                .filter(\.$role.$id == roleId)
+                .filter(\.$contentTypeSlug == form.contentTypeSlug)
+                .filter(\.$fieldName == form.fieldName)
+                .filter(\.$action == form.action)
+                .delete()
         }
 
         return req.redirect(to: "/admin/roles")

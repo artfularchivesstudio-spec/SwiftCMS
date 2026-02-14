@@ -6,6 +6,9 @@ public protocol CmsModule: Sendable {
     /// Unique identifier for this module.
     var name: String { get }
 
+    /// Module version in semantic format (e.g., "1.0.0")
+    var version: String? { get }
+
     /// Boot priority. Higher priority modules boot first.
     /// Default is 0. Core modules use 100+.
     var priority: Int { get }
@@ -25,6 +28,7 @@ public protocol CmsModule: Sendable {
 // MARK: - Default Implementations
 
 extension CmsModule {
+    public var version: String? { nil }
     public var priority: Int { 0 }
     public func register(app: Application) throws {}
     public func boot(app: Application) throws {}

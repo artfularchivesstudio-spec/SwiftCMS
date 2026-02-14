@@ -1,0 +1,94 @@
+#export("content"):
+<!-- Field-Level Permissions Modal -->
+<div id="field-permissions-modal" class="modal">
+    <div class="modal-box w-full max-w-4xl">
+        <h3 class="font-bold text-lg mb-4" id="modal-title">Field-Level Permissions</h3>
+        <div id="field-permissions-content">
+            <!-- Will be populated by JavaScript -->
+        </div>
+        <div class="modal-action">
+            <button class="btn btn-ghost" onclick="document.getElementById('field-permissions-modal').close()">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Store field permissions data
+let fieldPermissions = {};
+#for((roleId, perms) in fieldPermissionsByRole):
+fieldPermissions['#(roleId)'] = [
+    #for(perm in perms):
+    { contentType: "#(perm.contentTypeSlug)", fieldName: "#(perm.fieldName)", action: "#(perm.action)" }#if(!for.last),#endif
+    #endfor
+];
+#endfor
+
+// Function to show field permissions for a role
+function showFieldPermissions(roleId, roleName) {
+    const modal = document.getElementById('field-permissions-modal');
+    const title = document.getElementById('modal-title');
+    const content = document.getElementById('field-permissions-content');
+
+    title.textContent = `Field Permissions - ${roleName}`;
+
+    // Group permissions by content type
+    const permsByType = {};
+    const rolePerms = fieldPermissions[roleId] || [];
+
+    rolePerms.forEach(perm => {
+        if (!permsByType[perm.contentType]) {
+            permsByType[perm.contentType] = {};
+        }
+        if (!permsByType[perm.contentType][perm.fieldName]) {
+            permsByType[perm.contentType][perm.fieldName] = { read: false, edit: false };
+        }
+        permsByType[perm.contentType][perm.fieldName][perm.action] = true;
+    });
+
+    // Generate HTML for field permissions
+    let html = '<div class="space-y-4">';
+
+    Object.keys(permsByType).sort().forEach(contentType => {
+        html += `
+            <div class="collapse collapse-arrow bg-base-200">
+                <input type="checkbox" />
+                <div class="collapse-title text-lg font-medium">
+                    ${contentType}
+                </div>
+                <div class="collapse-content">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Read</th>
+                                <th>Edit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+        `;
+
+        Object.keys(permsByType[contentType]).sort().forEach(fieldName => {
+            const perms = permsByType[contentType][fieldName];
+            html += `
+                <tr>
+                    <td class="font-medium">${fieldName}</td>
+                    <td><input type="checkbox" class="checkbox checkbox-xs" ${perms.read ? 'checked' : ''} disabled></td>
+                    <td><input type="checkbox" class="checkbox checkbox-xs" ${perms.edit ? 'checked' : ''} disabled></td>
+                </tr>
+            `;
+        });
+
+        html += `
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    content.innerHTML = html;
+    modal.showModal();
+}
+</script>
+#endexport

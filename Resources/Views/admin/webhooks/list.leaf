@@ -2,20 +2,40 @@
 #export("content"):
 <div class="flex justify-between items-center mb-6">
     <h3 class="text-lg font-semibold">Webhooks</h3>
-    <button class="btn btn-primary btn-sm">+ New Webhook</button>
+    <a href="/admin/webhooks/new" class="btn btn-primary btn-sm">+ New Webhook</a>
 </div>
 <div class="bg-base-100 rounded-box shadow-sm p-6">
     <table class="table">
-        <thead><tr><th>Name</th><th>URL</th><th>Enabled</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Name</th><th>URL</th><th>Events</th><th>Enabled</th><th>Actions</th></tr></thead>
         <tbody>
             #for(webhook in webhooks):
             <tr>
-                <td>#(webhook.name)</td>
-                <td class="font-mono text-xs">#(webhook.url)</td>
-                <td>#if(webhook.enabled):<span class="badge badge-success">Active</span>#else:<span class="badge">Inactive</span>#endif</td>
-                <td><button class="btn btn-ghost btn-xs">Edit</button></td>
+                <td class="font-semibold">#(webhook.name)</td>
+                <td class="font-mono text-xs max-w-xs truncate">#(webhook.url)</td>
+                <td class="text-xs">#(webhook.events)</td>
+                <td>
+                    #if(webhook.enabled):
+                    <span class="badge badge-success badge-sm">Active</span>
+                    #else:
+                    <span class="badge badge-ghost badge-sm">Inactive</span>
+                    #endif
+                </td>
+                <td class="flex gap-1">
+                    <a href="/admin/webhooks/#(webhook.id)/edit" class="btn btn-ghost btn-xs">Edit</a>
+                    <a href="/admin/webhooks/#(webhook.id)/deliveries" class="btn btn-ghost btn-xs">Deliveries</a>
+                    <form method="POST" action="/admin/webhooks/#(webhook.id)/toggle" class="inline">
+                        <button class="btn btn-outline btn-xs">#if(webhook.enabled):Disable#else:Enable#endif</button>
+                    </form>
+                    <form method="POST" action="/admin/webhooks/#(webhook.id)/delete" class="inline"
+                          onsubmit="return confirm('Delete this webhook?')">
+                        <button class="btn btn-error btn-xs btn-outline">Delete</button>
+                    </form>
+                </td>
             </tr>
             #endfor
+            #if(count(webhooks) == 0):
+            <tr><td colspan="5" class="text-center text-base-content/50">No webhooks configured</td></tr>
+            #endif
         </tbody>
     </table>
 </div>

@@ -1,0 +1,55 @@
+#extend("admin/base"):
+#export("content"):
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h3 class="text-lg font-semibold">#(title)</h3>
+            <p class="text-sm text-base-content/50 font-mono">#(webhook.url)</p>
+        </div>
+        <a href="/admin/webhooks" class="btn btn-ghost btn-sm">Back</a>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Event</th>
+                <th>Status</th>
+                <th>Attempts</th>
+                <th>Created</th>
+                <th>Delivered</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            #for(delivery in deliveries):
+            <tr>
+                <td><span class="badge badge-sm badge-ghost">#(delivery.event)</span></td>
+                <td>
+                    #if(delivery.responseStatus):
+                        #if(delivery.responseStatus >= 200 && delivery.responseStatus < 300):
+                        <span class="badge badge-sm badge-success">#(delivery.responseStatus)</span>
+                        #else:
+                        <span class="badge badge-sm badge-error">#(delivery.responseStatus)</span>
+                        #endif
+                    #else:
+                    <span class="badge badge-sm badge-warning">Pending</span>
+                    #endif
+                </td>
+                <td>#(delivery.attempts)</td>
+                <td class="text-xs">#(delivery.createdAt)</td>
+                <td class="text-xs">#if(delivery.deliveredAt):#(delivery.deliveredAt)#else:--#endif</td>
+                <td>
+                    <button class="btn btn-ghost btn-xs"
+                        hx-get="/api/v1/webhooks/deliveries/#(delivery.id)"
+                        hx-target="#delivery-detail">View Payload</button>
+                </td>
+            </tr>
+            #endfor
+            #if(count(deliveries) == 0):
+            <tr><td colspan="6" class="text-center text-base-content/50">No deliveries yet</td></tr>
+            #endif
+        </tbody>
+    </table>
+    <div id="delivery-detail" class="mt-4"></div>
+</div>
+#endexport
+#endextend

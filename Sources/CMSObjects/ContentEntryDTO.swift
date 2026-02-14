@@ -65,7 +65,7 @@ public struct UpdateContentEntryDTO: Content, Sendable {
 }
 
 /// DTO for content entry responses.
-public struct ContentEntryResponseDTO: Content, Sendable {
+public struct ContentEntryResponseDTO: Content, Codable, Sendable {
     public let id: UUID
     public let contentType: String
     public let data: AnyCodableValue

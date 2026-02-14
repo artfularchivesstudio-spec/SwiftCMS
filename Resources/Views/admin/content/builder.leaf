@@ -1,15 +1,25 @@
 #extend("admin/base"):
 #export("content"):
-<div class="bg-base-100 rounded-box shadow-sm p-6" x-data="{ fields: [], name: '', slug: '', kind: 'collection' }">
+<div class="bg-base-100 rounded-box shadow-sm p-6" x-data="{ fields: [], name: '', slug: '', displayName: '', kind: 'collection', description: '' }">
     <h3 class="text-lg font-semibold mb-6">Content Type Builder</h3>
-    <div class="grid grid-cols-2 gap-4 mb-6">
+    <div class="grid grid-cols-2 gap-4 mb-4">
         <div class="form-control">
             <label class="label"><span class="label-text">Name</span></label>
-            <input type="text" x-model="name" @input="slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')" class="input input-bordered" placeholder="Blog Post">
+            <input type="text" x-model="name" @input="slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''); displayName = name" class="input input-bordered" placeholder="Blog Post">
         </div>
         <div class="form-control">
             <label class="label"><span class="label-text">Slug</span></label>
             <input type="text" x-model="slug" class="input input-bordered" placeholder="blog-post">
+        </div>
+    </div>
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="form-control">
+            <label class="label"><span class="label-text">Display Name</span></label>
+            <input type="text" x-model="displayName" class="input input-bordered" placeholder="Blog Post">
+        </div>
+        <div class="form-control">
+            <label class="label"><span class="label-text">Description</span></label>
+            <input type="text" x-model="description" class="input input-bordered" placeholder="A blog post content type">
         </div>
     </div>
     <div class="form-control mb-6">
@@ -19,27 +29,79 @@
             <option value="single">Single</option>
         </select>
     </div>
+
     <h4 class="font-semibold mb-4">Fields</h4>
-    <template x-for="(field, index) in fields" :key="index">
-        <div class="flex gap-2 mb-2 items-end">
-            <input type="text" x-model="field.name" class="input input-bordered input-sm flex-1" placeholder="Field name">
-            <select x-model="field.type" class="select select-bordered select-sm">
-                #for(ft in fieldTypes):
-                <option value="#(ft)">#(ft)</option>
-                #endfor
-            </select>
-            <label class="label cursor-pointer gap-1"><input type="checkbox" x-model="field.required" class="checkbox checkbox-sm"><span class="label-text text-xs">Required</span></label>
-            <button @click="fields.splice(index, 1)" class="btn btn-error btn-sm btn-outline">X</button>
-        </div>
-    </template>
+    <div id="field-list">
+        <template x-for="(field, index) in fields" :key="index">
+            <div class="flex gap-2 mb-2 items-end bg-base-200 p-2 rounded-lg">
+                <div class="flex-1">
+                    <input type="text" x-model="field.name" class="input input-bordered input-sm w-full" placeholder="Field name">
+                </div>
+                <select x-model="field.type" class="select select-bordered select-sm w-40">
+                    #for(ft in fieldTypes):
+                    <option value="#(ft)">#(ft)</option>
+                    #endfor
+                </select>
+                <label class="label cursor-pointer gap-1">
+                    <input type="checkbox" x-model="field.required" class="checkbox checkbox-sm">
+                    <span class="label-text text-xs">Required</span>
+                </label>
+                <button @click="fields.splice(index, 1)" class="btn btn-error btn-sm btn-outline" title="Remove field">X</button>
+                <button @click="if(index > 0) { const t = fields[index]; fields[index] = fields[index-1]; fields[index-1] = t; }" class="btn btn-ghost btn-sm btn-outline" title="Move up" x-show="index > 0">&#8593;</button>
+                <button @click="if(index < fields.length-1) { const t = fields[index]; fields[index] = fields[index+1]; fields[index+1] = t; }" class="btn btn-ghost btn-sm btn-outline" title="Move down" x-show="index < fields.length-1">&#8595;</button>
+            </div>
+        </template>
+    </div>
     <button @click="fields.push({name:'', type:'shortText', required:false})" class="btn btn-outline btn-sm mb-6">+ Add Field</button>
+
     <div class="divider"></div>
+
     <button @click="
+        // Build JSON Schema from field definitions
+        const fieldTypeMap = {
+            shortText: {type:'string', maxLength:255},
+            longText: {type:'string'},
+            richText: {type:'string'},
+            integer: {type:'integer'},
+            decimal: {type:'number'},
+            boolean: {type:'boolean'},
+            dateTime: {type:'string', format:'date-time'},
+            email: {type:'string', format:'email'},
+            enumeration: {type:'string'},
+            json: {type:'object'},
+            media: {type:'string', format:'uuid'},
+            relationHasOne: {type:'string', format:'uuid'},
+            relationHasMany: {type:'array', items:{type:'string', format:'uuid'}},
+            component: {type:'object'}
+        };
+        const properties = {};
+        const required = [];
+        const fieldOrder = [];
+        for (const f of fields) {
+            if (!f.name) continue;
+            properties[f.name] = fieldTypeMap[f.type] || {type:'string'};
+            if (f.required) required.push(f.name);
+            fieldOrder.push(f.name);
+        }
+        const jsonSchema = {type:'object', properties, additionalProperties:false};
+        if (required.length > 0) jsonSchema.required = required;
+
         fetch('/api/v1/content-types', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({name, slug, displayName: name, kind, fieldOrder: fields})
-        }).then(r => { if(r.ok) window.location='/admin/content-types'; else r.json().then(e => alert(e.reason)); })
+            body: JSON.stringify({
+                name: name,
+                slug: slug,
+                displayName: displayName || name,
+                description: description || undefined,
+                kind: kind,
+                jsonSchema: jsonSchema,
+                fieldOrder: fieldOrder
+            })
+        }).then(r => {
+            if(r.ok) window.location='/admin/content-types';
+            else r.json().then(e => alert(e.reason || 'Failed to create content type'));
+        }).catch(e => alert('Error: ' + e.message));
     " class="btn btn-primary">Create Content Type</button>
 </div>
 #endexport

@@ -56,8 +56,14 @@ public func routes(_ app: Application) throws {
     // Search
     try protectedApi.register(collection: SearchController())
 
+    // Version endpoints
+    try protectedApi.register(collection: VersionController())
+
     // Preview endpoints
     try protectedApi.register(collection: PreviewController())
+
+    // Saved filters
+    try app.register(collection: SavedFilterController())
 
     // Bulk operations
     try app.register(collection: BulkOperationsController())

@@ -6,6 +6,7 @@ import CMSObjects
 /// Analytics plugin: tracks API hits per content type per day.
 public struct AnalyticsModule: CmsModule {
     public let name = "analytics"
+    public let version = "1.0.0"
     public let priority = 90
 
     public init() {}

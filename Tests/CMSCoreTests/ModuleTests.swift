@@ -5,8 +5,8 @@ import Vapor
 struct TestModuleA: CmsModule {
     let name = "test-a"
     let priority = 10
-    var onRegister: (() -> Void)?
-    var onBoot: (() -> Void)?
+    var onRegister: (@Sendable () -> Void)?
+    var onBoot: (@Sendable () -> Void)?
 
     func register(app: Application) throws { onRegister?() }
     func boot(app: Application) throws { onBoot?() }
@@ -15,7 +15,7 @@ struct TestModuleA: CmsModule {
 struct TestModuleB: CmsModule {
     let name = "test-b"
     let priority = 20
-    var onBoot: (() -> Void)?
+    var onBoot: (@Sendable () -> Void)?
 
     func boot(app: Application) throws { onBoot?() }
 }

@@ -4,6 +4,48 @@
     <h3 class="text-lg font-semibold">#(contentType.displayName)</h3>
     <a href="/admin/content/#(contentType.slug)/new" class="btn btn-primary btn-sm">+ New Entry</a>
 </div>
+
+<div class="mb-4 flex gap-2 items-center">
+    <input type="text" id="filter-search" class="input input-bordered input-sm" placeholder="Search entries..." hx-get="/admin/search" hx-trigger="keyup changed delay:500ms" hx-target="#search-results">
+
+    <div class="dropdown dropdown-end">
+        <label tabindex="0" class="btn btn-sm btn-ghost m-1">Saved Filters</label>
+        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52" id="saved-filters-list" hx-get="/saved-filters?contentType=#(contentType.slug)" hx-trigger="load">
+            <li><a class="loading">Loading...</a></li>
+        </ul>
+    </div>
+
+    <button class="btn btn-sm btn-ghost" onclick="document.getElementById('save-filter-modal').showModal()">
+        Save Filter
+    </button>
+</div>
+
+<!-- Save Filter Modal -->
+<dialog id="save-filter-modal" class="modal">
+    <form method="POST" action="/saved-filters" class="modal-box">
+        <h3 class="font-bold text-lg">Save Filter</h3>
+        <div class="form-control">
+            <label class="label"><span class="label-text">Filter Name</span></label>
+            <input type="text" name="name" class="input input-bordered" required>
+        </div>
+        <div class="form-control">
+            <label class="label"><span class="label-text">Include sorting</span></label>
+            <input type="checkbox" name="includeSort" class="checkbox">
+        </div>
+        <div class="form-control">
+            <label class="label"><span class="label-text">Make public</span></label>
+            <input type="checkbox" name="isPublic" class="checkbox">
+        </div>
+        <input type="hidden" name="contentType" value="#(contentType.slug)">
+        <input type="hidden" name="filterJSON" id="filter-json">
+        <input type="hidden" name="sortJSON" id="sort-json">
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="document.getElementById('save-filter-modal').close()">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+    </form>
+</dialog>
+
 <div class="bg-base-100 rounded-box shadow-sm p-6">
     <table class="table">
         <thead><tr><th>ID</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
@@ -24,5 +66,35 @@
         #if(page < totalPages):<a href="?page=#(page + 1)" class="btn btn-sm">Next</a>#endif
     </div>
 </div>
+
+<script>
+function saveCurrentFilter() {
+    // Get current URL parameters as filter
+    const params = new URLSearchParams(window.location.search);
+    const filter = {};
+    const sort = {};
+
+    // Extract filter params (example: search, status, etc.)
+    // This would be customized based on actual filter implementation
+    params.forEach((value, key) => {
+        if (key.startsWith('filter.')) {
+            filter[key.substring(7)] = value;
+        } else if (key.startsWith('sort.')) {
+            sort[key.substring(5)] = value;
+        }
+    });
+
+    document.getElementById('filter-json').value = JSON.stringify(filter);
+    document.getElementById('sort-json').value = JSON.stringify(sort);
+}
+
+// Bind to save filter button
+document.addEventListener('DOMContentLoaded', () => {
+    const saveBtn = document.querySelector('button[onclick*="save-filter-modal"]');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveCurrentFilter);
+    }
+});
+</script>
 #endexport
 #endextend

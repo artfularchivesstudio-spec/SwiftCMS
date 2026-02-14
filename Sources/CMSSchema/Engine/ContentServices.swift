@@ -94,7 +94,10 @@ public struct ContentTypeService: Sendable {
         if let displayName = dto.displayName { definition.displayName = displayName }
         if let description = dto.description { definition.description = description }
         if let kind = dto.kind { definition.kind = kind.rawValue }
-        if let jsonSchema = dto.jsonSchema { definition.jsonSchema = jsonSchema }
+        if let jsonSchema = dto.jsonSchema {
+            definition.jsonSchema = jsonSchema
+            definition.updateSchemaHash()
+        }
         if let fieldOrder = dto.fieldOrder { definition.fieldOrder = .array(fieldOrder) }
         if let settings = dto.settings { definition.settings = settings }
 

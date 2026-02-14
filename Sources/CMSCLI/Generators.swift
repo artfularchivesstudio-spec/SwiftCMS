@@ -1,4 +1,26 @@
 import Foundation
+import CryptoKit
+
+// MARK: - Hash Utilities
+
+/// Standard hash format for caching type definitions.
+public struct SchemaHashCache: Codable {
+    public let version: String
+    public var hashes: [String: String]  // content type slug -> hash
+
+    public init(version: String = "1", hashes: [String: String] = [:]) {
+        self.version = version
+        self.hashes = hashes
+    }
+}
+
+/// Extension for computing SHA256 hashes.
+extension Data {
+    var sha256: String {
+        let hash = SHA256.hash(data: self)
+        return hash.compactMap { String(format: "%02x", $0) }.joined()
+    }
+}
 
 // MARK: - Swift SDK Generator
 
