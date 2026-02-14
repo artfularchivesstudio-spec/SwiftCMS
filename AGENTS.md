@@ -101,81 +101,74 @@
 ### Agent 1: Content Type Engine
 - **Owns:** `Sources/CMSSchema/Engine/`
 - **Deliverables:**
-  - JSON Schema generation from field definitions
-  - Validation service (kylef/JSONSchema.swift)
-  - Content type CRUD service
-  - Field type registry (14 field types)
-  - Relation resolution service
-  - Schema change event dispatch
+  - `JSONSchema.swift` — Schema generation from field definitions (14 field types).
+  - `SchemaValidator.swift` — Core validation logic (using kylef/JSONSchema.swift).
+  - `FieldTypeRegistry.swift` — Registration system for dynamic field types.
+  - `RelationResolver.swift` — Service to resolve UUIDs to nested objects.
+  - `PreviewController.swift` — Content API preview routes.
 - **Status:** PENDING
 
 ### Agent 2: REST API Controllers
 - **Owns:** `Sources/CMSApi/REST/`
 - **Deliverables:**
-  - `DynamicContentController` (`/:contentType` with full CRUD)
-  - `ContentTypeController`
-  - Query params: pagination, filtering, sorting, field selection, populate
-  - API versioning (`/api/v1/`)
+  - `DynamicContentController` — `/:contentType` CRUD with validation.
+  - `ContentTypeController` — Meta-API for type definitions.
+  - Query parsing: `?page`, `?perPage`, `?status`, `?locale`, `?sort`, `?filter[field]=val`.
+  - Content versioning endpoints: `/:id/versions`, `/:id/versions/:v/restore`.
 - **Status:** PENDING
 
 ### Agent 3: Admin Panel Core
-- **Owns:** `Sources/CMSAdmin/`, `Resources/Views/`
+- **Owns:** `Sources/CMSAdmin/`, `Resources/Views/admin/`
 - **Deliverables:**
-  - Leaf base layout (sidebar, Tailwind + DaisyUI, HTMX)
-  - Dashboard, content type builder (Alpine.js + SortableJS)
-  - Content listing + edit forms (dynamic from JSON Schema)
-  - Session auth for admin
+  - Leaf base layout: Sidebar, Tailwind, DaisyUI, HTMX, Alpine.js.
+  - Content type builder: Visual UI for defining fields and validation.
+  - Content editor: Dynamic forms generated from JSON Schema.
+  - Media library integration: Visual browser and uploader.
 - **Status:** PENDING
 
-### Agent 4: Media Library
+### Agent 4: Media Service
 - **Owns:** `Sources/CMSMedia/`
 - **Deliverables:**
-  - `FileStorageProvider` protocol (local + S3 via Soto)
-  - Multipart upload, metadata extraction
-  - Thumbnail job (Vapor Queues)
-  - Media browser admin page
-  - Signed URLs
+  - `S3StorageProvider` — Full Soto v6 implementation.
+  - `MediaController` — Upload/List/Delete API.
+  - Multipart handling with file size/type validation.
+  - Metadata extraction (dimensions, MIME, hash).
 - **Status:** PENDING
 
-### Agent 5: Firebase + Local Auth
+### Agent 5: Auth Extension
 - **Owns:** `Sources/CMSAuth/Firebase/`, `Sources/CMSAuth/Local/`
 - **Deliverables:**
-  - FirebaseProvider full impl (X.509 cert, JWT verify, custom claims)
-  - LocalJWTProvider impl (self-issued tokens, bcrypt passwords)
-  - Admin login page with provider selection
-  - User management admin pages
+  - `FirebaseProvider` — Full certificate-based verification.
+  - `LocalJWTProvider` — Password-based login and token issuance.
+  - Admin login pages and user profile management.
+  - Seed scripts for default roles/permissions.
 - **Status:** PENDING
 
 ### Agent 6: Search Integration
 - **Owns:** `Sources/CMSSearch/`
 - **Deliverables:**
-  - Meilisearch wrapper
-  - Auto-index on schema create via hooks
-  - Content sync on CRUD via hooks
-  - Search endpoint (`/api/v1/search`)
-  - Admin global search (HTMX)
+  - Meilisearch client integration.
+  - Auto-sync hooks: Update index on content save/delete.
+  - `/api/v1/search` endpoint.
+  - Admin global search interface.
 - **Status:** PENDING
 
-### Agent 7: Webhooks + Background Jobs
-- **Owns:** `Sources/CMSEvents/` (webhook dispatcher), `Sources/CMSJobs/`
+### Agent 7: Webhooks & Jobs
+- **Owns:** `Sources/CMSEvents/`, `Sources/CMSJobs/`
 - **Deliverables:**
-  - WebhookDispatcher (HMAC-SHA256 signed)
-  - Exponential backoff retry (5 attempts over ~30 min)
-  - Dead Letter Queue processing
-  - Scheduled publishing job (every 60s)
-  - Content version pruning job
-  - Audit log cleanup job
+  - `WebhookDispatcher` — HMAC-SHA256 signing and idempotency checks.
+  - `WebhookDeliveryJob` — Queue-based retries with exponential backoff.
+  - `ScheduledPublishJob` — Publish content at specific timestamps.
+  - `DeadLetterEntry` management UI.
 - **Status:** PENDING
 
-### Agent 8: Integration + Tests
-- **Owns:** `Tests/`
+### Agent 8: Integration & Tests
+- **Owns:** `Tests/`, final merge coordination.
 - **Deliverables:**
-  - Content CRUD integration tests
-  - Auth flow integration tests
-  - Media upload tests
-  - Search sync tests
-  - Webhook delivery tests
-  - Merge all branches, full test suite green
+  - End-to-end Content CRUD tests.
+  - Full stack Docker verification (Postgres+Redis+Search).
+  - Performance baseline benchmarks (<200ms list target).
+  - Wave 2 tag and merge.
 - **Status:** PENDING
 
 ---
