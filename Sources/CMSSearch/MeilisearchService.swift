@@ -1,4 +1,5 @@
 import Vapor
+import Fluent
 import CMSCore
 import CMSObjects
 import CMSSchema
@@ -141,6 +142,24 @@ public struct SearchModule: CmsModule {
                 id: event.entryId.uuidString,
                 data: event.data.mapValues { .string($0) }
             )
+        }
+
+        // Subscribe to content update events for re-indexing
+        app.eventBus.subscribe(ContentUpdatedEvent.self) { event, context in
+            let service = MeilisearchService(
+                baseURL: meiliURL, apiKey: meiliKey,
+                client: app.client
+            )
+            // Fetch the updated entry from the database to get its current data
+            if let entry = try await ContentEntry.find(event.entryId, on: app.db) {
+                let dataDict = entry.data.dictionaryValue ?? [:]
+                try await service.indexEntry(
+                    slug: event.contentType,
+                    id: event.entryId.uuidString,
+                    data: dataDict
+                )
+                context.logger.info("Search: Re-indexed \(event.entryId) in \(event.contentType)")
+            }
         }
 
         app.eventBus.subscribe(ContentDeletedEvent.self) { event, context in

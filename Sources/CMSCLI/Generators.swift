@@ -175,64 +175,7 @@ public struct TypeScriptGenerator {
     }
 }
 
-// MARK: - Strapi Schema Parser
 
-/// Parses Strapi schema.json files and converts to SwiftCMS format.
-public struct StrapiSchemaParser {
-
-    /// Strapi to SwiftCMS type mapping.
-    static let typeMapping: [String: String] = [
-        "string": "shortText",
-        "text": "longText",
-        "richtext": "richText",
-        "integer": "integer",
-        "float": "decimal",
-        "decimal": "decimal",
-        "boolean": "boolean",
-        "date": "dateTime",
-        "datetime": "dateTime",
-        "time": "shortText",
-        "email": "email",
-        "enumeration": "enumeration",
-        "media": "media",
-        "json": "json",
-        "uid": "shortText",
-        "relation": "relationHasOne",
-    ]
-
-    /// Parse a Strapi schema.json and return SwiftCMS field definitions.
-    public static func parse(schemaJSON: Data) throws -> (name: String, fields: [[String: Any]]) {
-        guard let schema = try JSONSerialization.jsonObject(with: schemaJSON) as? [String: Any],
-              let info = schema["info"] as? [String: Any],
-              let displayName = info["displayName"] as? String,
-              let attributes = schema["attributes"] as? [String: Any] else {
-            throw NSError(domain: "StrapiParser", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid Strapi schema"])
-        }
-
-        var fields: [[String: Any]] = []
-        for (name, attrValue) in attributes {
-            guard let attr = attrValue as? [String: Any],
-                  let strapiType = attr["type"] as? String else {
-                continue
-            }
-
-            let swiftCMSType = typeMapping[strapiType] ?? "shortText"
-            var field: [String: Any] = [
-                "name": name,
-                "type": swiftCMSType,
-                "required": attr["required"] as? Bool ?? false,
-            ]
-
-            if let enumValues = attr["enum"] as? [String] {
-                field["enumValues"] = enumValues
-            }
-
-            fields.append(field)
-        }
-
-        return (name: displayName, fields: fields)
-    }
-}
 
 // MARK: - Static Export
 

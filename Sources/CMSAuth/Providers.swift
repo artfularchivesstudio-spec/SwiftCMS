@@ -1,6 +1,6 @@
 import Vapor
-import CMSSchema
 import CMSObjects
+import CMSSchema
 
 // MARK: - Firebase Auth Provider
 
@@ -16,7 +16,6 @@ public struct FirebaseAuthProvider: AuthProvider, Sendable {
     }
 
     public func verify(token: String, on req: Request) async throws -> AuthenticatedUser {
-        // Decode JWT payload (simplified)
         guard let payloadData = decodePayload(token: token) else {
             throw ApiError.unauthorized("Invalid Firebase token")
         }
@@ -26,6 +25,7 @@ public struct FirebaseAuthProvider: AuthProvider, Sendable {
             let email: String?
             let exp: Double
             let iss: String
+            let aud: String?
             let customClaims: FirebaseClaims?
 
             struct FirebaseClaims: Codable {
@@ -33,15 +33,29 @@ public struct FirebaseAuthProvider: AuthProvider, Sendable {
             }
 
             enum CodingKeys: String, CodingKey {
-                case sub, email, exp, iss
+                case sub, email, exp, iss, aud
                 case customClaims = "custom_claims"
             }
         }
 
         let payload = try JSONDecoder().decode(FirebasePayload.self, from: payloadData)
 
+        // Verify token expiry
         guard Date(timeIntervalSince1970: payload.exp) > Date() else {
             throw ApiError.unauthorized("Token expired")
+        }
+
+        // Verify issuer and audience against the configured Firebase project ID
+        let projectId = Environment.get("FIREBASE_PROJECT_ID") ?? ""
+        if !projectId.isEmpty {
+            guard payload.iss == "https://securetoken.google.com/\(projectId)" else {
+                throw ApiError.unauthorized("Invalid token issuer")
+            }
+            if let aud = payload.aud {
+                guard aud == projectId else {
+                    throw ApiError.unauthorized("Invalid token audience")
+                }
+            }
         }
 
         return AuthenticatedUser(

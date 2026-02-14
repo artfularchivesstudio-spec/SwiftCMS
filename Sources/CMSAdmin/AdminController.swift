@@ -36,6 +36,16 @@ public struct AdminController: RouteCollection {
         protected.get("webhooks", use: webhookList)
         protected.get("settings", use: settings)
         protected.get("system", "dlq", use: deadLetterQueue)
+
+        // POST routes — Wave 2: form-based mutations
+        protected.post("content-types", use: createContentType)
+        protected.post("content", ":contentType", use: createOrUpdateEntry)
+        protected.post("content", ":contentType", ":entryId", use: createOrUpdateEntry)
+        protected.post("webhooks", use: createWebhook)
+        protected.post("webhooks", ":webhookId", "delete", use: deleteWebhook)
+        protected.post("webhooks", ":webhookId", "toggle", use: toggleWebhook)
+        protected.post("users", use: createUser)
+        protected.post("users", ":userId", "delete", use: deleteUser)
     }
 
     // MARK: - Dashboard
@@ -321,4 +331,244 @@ public struct AdminController: RouteCollection {
         req.session.unauthenticate(User.self)
         return req.redirect(to: "/admin/login")
     }
+
+    // MARK: - POST Handlers (Wave 2)
+
+    // MARK: Content Type Creation
+
+    /// Creates a new content type from the admin form builder.
+    /// Parses the submitted field definitions JSON and generates a JSON Schema.
+    @Sendable
+    func createContentType(req: Request) async throws -> Response {
+        let form = try req.content.decode(ContentTypeFormDTO.self)
+
+        // Parse field definitions from the JSON string submitted by the form builder
+        var fields: [FieldDefinition] = []
+        if let json = form.fieldsJson, !json.isEmpty {
+            let data = Data(json.utf8)
+            fields = try JSONDecoder().decode([FieldDefinition].self, from: data)
+        }
+
+        // Generate JSON Schema from the parsed field definitions
+        let schema = SchemaGenerator.generate(from: fields)
+
+        // Build the ordered field names for display ordering
+        let fieldOrder: [AnyCodableValue] = fields.map { .string($0.name) }
+
+        // Determine content type kind, defaulting to collection
+        let kind = ContentTypeKind(rawValue: form.kind ?? "collection") ?? .collection
+
+        // Build the CmsContext from the authenticated session user
+        let userId = req.auth.get(User.self)?.id?.uuidString
+        let context = CmsContext(logger: req.logger, userId: userId)
+
+        let dto = CreateContentTypeDTO(
+            name: form.name,
+            slug: form.slug,
+            displayName: form.displayName,
+            description: form.description,
+            kind: kind,
+            jsonSchema: schema,
+            fieldOrder: fieldOrder
+        )
+
+        _ = try await ContentTypeService.create(
+            dto: dto,
+            on: req.db,
+            eventBus: req.eventBus,
+            context: context
+        )
+
+        return req.redirect(to: "/admin/content-types")
+    }
+
+    // MARK: Content Entry Create / Update
+
+    /// Creates or updates a content entry based on form data.
+    /// When an entryId path parameter is present the handler updates; otherwise it creates.
+    @Sendable
+    func createOrUpdateEntry(req: Request) async throws -> Response {
+        let contentType = try req.parameters.require("contentType")
+        let entryId = req.parameters.get("entryId", as: UUID.self)
+
+        // Decode the flat form data submitted by the content editor
+        let formData = try req.content.decode([String: String].self)
+
+        // Convert flat string values into an AnyCodableValue dictionary
+        var dataDict: [String: AnyCodableValue] = [:]
+        for (key, value) in formData {
+            dataDict[key] = .string(value)
+        }
+        let entryData: AnyCodableValue = .dictionary(dataDict)
+
+        // Build CmsContext from the authenticated session user
+        let userId = req.auth.get(User.self)?.id?.uuidString
+        let context = CmsContext(logger: req.logger, userId: userId)
+
+        if let id = entryId {
+            // Update existing entry
+            let updateDTO = UpdateContentEntryDTO(data: entryData)
+            _ = try await ContentEntryService.update(
+                contentType: contentType,
+                id: id,
+                dto: updateDTO,
+                on: req.db,
+                eventBus: req.eventBus,
+                context: context
+            )
+        } else {
+            // Create new entry
+            let createDTO = CreateContentEntryDTO(data: entryData)
+            _ = try await ContentEntryService.create(
+                contentType: contentType,
+                dto: createDTO,
+                on: req.db,
+                eventBus: req.eventBus,
+                context: context
+            )
+        }
+
+        return req.redirect(to: "/admin/content/\(contentType)")
+    }
+
+    // MARK: Webhook CRUD
+
+    /// Creates a new webhook from the admin webhooks form.
+    @Sendable
+    func createWebhook(req: Request) async throws -> Response {
+        let form = try req.content.decode(WebhookFormDTO.self)
+
+        // Parse the comma-separated event names into an AnyCodableValue array
+        let eventNames = form.events
+            .split(separator: ",")
+            .map { AnyCodableValue.string(String($0).trimmingCharacters(in: .whitespaces)) }
+
+        // Generate a random secret if none was provided
+        let secret = form.secret ?? UUID().uuidString
+
+        let webhook = Webhook(
+            name: form.name,
+            url: form.url,
+            events: .array(eventNames),
+            secret: secret,
+            enabled: true
+        )
+        try await webhook.save(on: req.db)
+
+        return req.redirect(to: "/admin/webhooks")
+    }
+
+    /// Deletes a webhook by its ID.
+    @Sendable
+    func deleteWebhook(req: Request) async throws -> Response {
+        guard let webhookId = req.parameters.get("webhookId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        guard let webhook = try await Webhook.find(webhookId, on: req.db) else {
+            throw Abort(.notFound)
+        }
+
+        try await webhook.delete(on: req.db)
+        return req.redirect(to: "/admin/webhooks")
+    }
+
+    /// Toggles a webhook between enabled and disabled states.
+    @Sendable
+    func toggleWebhook(req: Request) async throws -> Response {
+        guard let webhookId = req.parameters.get("webhookId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        guard let webhook = try await Webhook.find(webhookId, on: req.db) else {
+            throw Abort(.notFound)
+        }
+
+        webhook.enabled = !webhook.enabled
+        try await webhook.save(on: req.db)
+
+        return req.redirect(to: "/admin/webhooks")
+    }
+
+    // MARK: User Management
+
+    /// Creates a new user from the admin users form.
+    @Sendable
+    func createUser(req: Request) async throws -> Response {
+        let form = try req.content.decode(UserFormDTO.self)
+
+        // Look up the role; fall back to the first available role if not specified
+        let roleId: UUID
+        if let formRoleId = form.roleId {
+            roleId = formRoleId
+        } else {
+            // Default to the first non-system role, or any role available
+            guard let defaultRole = try await Role.query(on: req.db).first() else {
+                throw Abort(.badRequest, reason: "No roles configured in the system")
+            }
+            roleId = defaultRole.id!
+        }
+
+        // Hash the password if provided
+        let passwordHash: String? = if let password = form.password, !password.isEmpty {
+            try Bcrypt.hash(password)
+        } else {
+            nil
+        }
+
+        let user = User(
+            email: form.email,
+            passwordHash: passwordHash,
+            displayName: form.displayName,
+            roleID: roleId,
+            authProvider: form.authProvider ?? "local"
+        )
+        try await user.save(on: req.db)
+
+        return req.redirect(to: "/admin/users")
+    }
+
+    /// Deletes a user by their ID.
+    @Sendable
+    func deleteUser(req: Request) async throws -> Response {
+        guard let userId = req.parameters.get("userId", as: UUID.self) else {
+            throw Abort(.badRequest)
+        }
+
+        guard let user = try await User.find(userId, on: req.db) else {
+            throw Abort(.notFound)
+        }
+
+        try await user.delete(on: req.db)
+        return req.redirect(to: "/admin/users")
+    }
+}
+
+// MARK: - Admin Form DTOs
+
+/// Form DTO for content type creation from the admin builder UI.
+struct ContentTypeFormDTO: Content {
+    let name: String
+    let slug: String
+    let displayName: String
+    let description: String?
+    let kind: String?
+    let fieldsJson: String?  // JSON array of field definitions
+}
+
+/// Form DTO for webhook creation from the admin webhooks UI.
+struct WebhookFormDTO: Content {
+    let name: String
+    let url: String
+    let events: String       // Comma-separated event names
+    let secret: String?
+}
+
+/// Form DTO for user creation from the admin users UI.
+struct UserFormDTO: Content {
+    let email: String
+    let password: String?
+    let displayName: String?
+    let roleId: UUID?
+    let authProvider: String?
 }

@@ -1,6 +1,7 @@
 import Vapor
 import Fluent
 import Queues
+import Crypto
 import CMSObjects
 import CMSSchema
 import CMSEvents
@@ -94,11 +95,9 @@ public struct WebhookDeliveryJob: AsyncJob, Sendable {
     }
 
     private func computeHMAC(data: Data, secret: String) -> String {
-        // Simplified HMAC computation
-        let key = Data(secret.utf8)
-        let combined = key + data
-        // In production, use Crypto.HMAC<SHA256>
-        return combined.base64EncodedString().prefix(64).lowercased()
+        let key = SymmetricKey(data: Data(secret.utf8))
+        let signature = HMAC<SHA256>.authenticationCode(for: data, using: key)
+        return Data(signature).map { String(format: "%02x", $0) }.joined()
     }
 }
 

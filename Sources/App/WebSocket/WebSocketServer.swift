@@ -47,49 +47,49 @@ public struct WebSocketServer: Sendable {
     /// Configure WebSocket routes on the application.
     public static func configure(app: Application) {
         app.webSocket("ws") { req, ws in
-            // Wrap everything in a Task to ensure no errors propagate
-            // Authenticate via ?token= query param
-            guard let token = req.query[String.self, at: "token"] else {
-                try? await ws.close(code: .policyViolation)
-                return
-            }
-
-            // Verify token
-            let authProvider = app.storage[AuthProviderKey.self]
-            do {
-                // We use try? await to safely handle potential errors without throwing
-                // In a real scenario, correct handling is needed.
-                // Assuming verify returns a User or similar.
-                 _ = try await authProvider?.verify(token: token, on: req)
-            } catch {
-                try? await ws.close(code: .policyViolation)
-                return
-            }
-
-            let clientId = UUID()
-            let client = ConnectionManager.WebSocketClient(
-                id: clientId, ws: ws, subscribedTypes: []
-            )
-            await manager.add(client)
-
-            let count = await manager.count
-            req.logger.info("WebSocket connected: \(clientId) (total: \(count))")
-
-            // Handle incoming messages (subscription requests)
-            ws.onText { ws, text in
-                // Expected: {"subscribe": "contentType"}
-                if let data = text.data(using: .utf8),
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: String],
-                   let contentType = json["subscribe"] {
-                    await manager.subscribe(clientId, to: contentType)
+            Task {
+                // Authenticate via ?token= query param
+                guard let token = req.query[String.self, at: "token"] else {
+                    try? await ws.close(code: .policyViolation)
+                    return
                 }
-            }
 
-            ws.onClose.whenComplete { _ in
-                Task {
-                    await manager.remove(clientId)
-                    let remaining = await manager.count
-                    req.logger.info("WebSocket disconnected: \(clientId) (remaining: \(remaining))")
+                // Verify token
+                let authProvider = req.application.storage[AuthProviderKey.self]
+                do {
+                    _ = try await authProvider?.verify(token: token, on: req)
+                } catch {
+                    try? await ws.close(code: .policyViolation)
+                    return
+                }
+
+                let clientId = UUID()
+                let client = ConnectionManager.WebSocketClient(
+                    id: clientId, ws: ws, subscribedTypes: []
+                )
+                await manager.add(client)
+
+                let count = await manager.count
+                req.logger.info("WebSocket connected: \(clientId) (total: \(count))")
+
+                // Handle incoming messages (subscription requests)
+                ws.onText { ws, text in
+                    Task {
+                        // Expected: {"subscribe": "contentType"}
+                        if let data = text.data(using: .utf8),
+                           let json = try? JSONSerialization.jsonObject(with: data) as? [String: String],
+                           let contentType = json["subscribe"] {
+                            await manager.subscribe(clientId, to: contentType)
+                        }
+                    }
+                }
+
+                ws.onClose.whenComplete { _ in
+                    Task {
+                        await manager.remove(clientId)
+                        let remaining = await manager.count
+                        req.logger.info("WebSocket disconnected: \(clientId) (remaining: \(remaining))")
+                    }
                 }
             }
         }

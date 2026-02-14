@@ -211,7 +211,23 @@ public struct ContentEntryService: Sendable {
         return entry.toResponseDTO()
     }
 
-    /// List content entries with pagination, filtering, and sorting.
+    /// List content entries with pagination, filtering, sorting, and field selection.
+    ///
+    /// Supports in-memory JSONB field filtering, JSONB-based sorting, and sparse fieldsets.
+    /// - Parameters:
+    ///   - contentType: The content type slug to query entries for.
+    ///   - db: The database connection.
+    ///   - page: The page number (1-based). Defaults to 1.
+    ///   - perPage: The number of items per page. Defaults to 25.
+    ///   - status: Optional status filter applied at the database level.
+    ///   - locale: Optional locale filter applied at the database level.
+    ///   - sortField: Optional JSONB field name to sort by (in-memory).
+    ///   - sortDirection: Sort direction, either "asc" or "desc". Defaults to "desc".
+    ///   - filters: Optional dictionary of JSONB field filters. Each key is a field name
+    ///     within the entry's `data` dictionary, and the value is matched against the
+    ///     field's string representation.
+    ///   - fields: Optional list of field names for sparse fieldsets. When provided, only
+    ///     the specified keys are retained in each entry's `data` dictionary.
     public static func list(
         contentType: String,
         on db: Database,
@@ -220,7 +236,9 @@ public struct ContentEntryService: Sendable {
         status: String? = nil,
         locale: String? = nil,
         sortField: String? = nil,
-        sortDirection: String = "desc"
+        sortDirection: String = "desc",
+        filters: [String: String]? = nil,
+        fields: [String]? = nil
     ) async throws -> PaginationWrapper<ContentEntryResponseDTO> {
         var query = ContentEntry.query(on: db)
             .filter(\.$contentType == contentType)
@@ -233,18 +251,180 @@ public struct ContentEntryService: Sendable {
             query = query.filter(\.$locale == locale)
         }
 
-        let total = try await query.count()
+        // When JSONB filters are present, we need to fetch all matching entries first,
+        // then apply in-memory filtering before paginating. Without JSONB filters,
+        // use database-level pagination for efficiency.
+        let hasJsonbProcessing = (filters != nil && !(filters?.isEmpty ?? true))
+            || sortField != nil
 
-        // Default sort by createdAt desc
-        query = query.sort(\.$createdAt, sortDirection == "asc" ? .ascending : .descending)
+        if hasJsonbProcessing {
+            // Fetch all entries matching DB-level filters for in-memory processing
+            let allEntries = try await query
+                .sort(\.$createdAt, sortDirection == "asc" ? .ascending : .descending)
+                .all()
 
-        let entries = try await query
-            .offset((page - 1) * perPage)
-            .limit(min(perPage, 100))
-            .all()
+            var dtos = allEntries.map { $0.toResponseDTO() }
 
-        let dtos = entries.map { $0.toResponseDTO() }
-        return .paginate(items: dtos, page: page, perPage: perPage, total: total)
+            // Apply in-memory JSONB field filters
+            if let filters = filters, !filters.isEmpty {
+                dtos = dtos.filter { dto in
+                    guard let dataDict = dto.data.dictionaryValue else { return false }
+                    return filters.allSatisfy { key, value in
+                        guard let fieldValue = dataDict[key] else { return false }
+                        return Self.matchesFilter(fieldValue: fieldValue, filterValue: value)
+                    }
+                }
+            }
+
+            // Apply in-memory JSONB sort
+            if let sortField = sortField {
+                let ascending = sortDirection == "asc"
+                dtos.sort { a, b in
+                    let aVal = a.data[sortField]
+                    let bVal = b.data[sortField]
+                    return Self.compareAnyCodableValues(aVal, bVal, ascending: ascending)
+                }
+            }
+
+            let total = dtos.count
+
+            // Apply pagination in-memory
+            let clampedPerPage = min(perPage, 100)
+            let startIndex = (page - 1) * clampedPerPage
+            let paginatedDtos: [ContentEntryResponseDTO]
+            if startIndex < dtos.count {
+                let endIndex = min(startIndex + clampedPerPage, dtos.count)
+                paginatedDtos = Array(dtos[startIndex..<endIndex])
+            } else {
+                paginatedDtos = []
+            }
+
+            // Apply sparse fieldsets
+            let finalDtos = Self.applyFieldSelection(dtos: paginatedDtos, fields: fields)
+            return .paginate(items: finalDtos, page: page, perPage: clampedPerPage, total: total)
+        } else {
+            // No JSONB processing needed; use efficient database-level pagination
+            let total = try await query.count()
+
+            // Default sort by createdAt
+            query = query.sort(\.$createdAt, sortDirection == "asc" ? .ascending : .descending)
+
+            let clampedPerPage = min(perPage, 100)
+            let entries = try await query
+                .offset((page - 1) * clampedPerPage)
+                .limit(clampedPerPage)
+                .all()
+
+            let dtos = entries.map { $0.toResponseDTO() }
+
+            // Apply sparse fieldsets
+            let finalDtos = Self.applyFieldSelection(dtos: dtos, fields: fields)
+            return .paginate(items: finalDtos, page: page, perPage: clampedPerPage, total: total)
+        }
+    }
+
+    // MARK: - In-Memory Filtering Helpers
+
+    /// Checks whether a JSONB field value matches a filter string.
+    ///
+    /// Compares the string representation of the field value against the filter value.
+    /// Supports string, int, double, and bool types.
+    private static func matchesFilter(fieldValue: AnyCodableValue, filterValue: String) -> Bool {
+        switch fieldValue {
+        case .string(let v):
+            return v == filterValue
+        case .int(let v):
+            return String(v) == filterValue
+        case .double(let v):
+            return String(v) == filterValue
+        case .bool(let v):
+            return String(v) == filterValue
+        case .null:
+            return filterValue.lowercased() == "null"
+        default:
+            return false
+        }
+    }
+
+    /// Compares two optional AnyCodableValue instances for sorting purposes.
+    ///
+    /// Nil values are sorted to the end regardless of direction. Values are compared
+    /// as strings, integers, or doubles depending on their type.
+    private static func compareAnyCodableValues(
+        _ a: AnyCodableValue?,
+        _ b: AnyCodableValue?,
+        ascending: Bool
+    ) -> Bool {
+        // Nil values sort to the end
+        guard let aVal = a else { return false }
+        guard let bVal = b else { return true }
+
+        let result: Bool
+        switch (aVal, bVal) {
+        case (.string(let aStr), .string(let bStr)):
+            result = aStr.localizedCaseInsensitiveCompare(bStr) == .orderedAscending
+        case (.int(let aInt), .int(let bInt)):
+            result = aInt < bInt
+        case (.double(let aDbl), .double(let bDbl)):
+            result = aDbl < bDbl
+        case (.int(let aInt), .double(let bDbl)):
+            result = Double(aInt) < bDbl
+        case (.double(let aDbl), .int(let bInt)):
+            result = aDbl < Double(bInt)
+        case (.bool(let aBool), .bool(let bBool)):
+            result = !aBool && bBool // false < true
+        default:
+            // Fall back to string comparison for mixed types
+            let aStr = Self.anyCodableToSortString(aVal)
+            let bStr = Self.anyCodableToSortString(bVal)
+            result = aStr.localizedCaseInsensitiveCompare(bStr) == .orderedAscending
+        }
+
+        return ascending ? result : !result
+    }
+
+    /// Converts an AnyCodableValue to a string suitable for sort comparison.
+    private static func anyCodableToSortString(_ value: AnyCodableValue) -> String {
+        switch value {
+        case .string(let v): return v
+        case .int(let v): return String(v)
+        case .double(let v): return String(v)
+        case .bool(let v): return v ? "true" : "false"
+        case .null: return ""
+        default: return ""
+        }
+    }
+
+    /// Applies sparse fieldset selection to response DTOs.
+    ///
+    /// When `fields` is provided, each DTO's `data` dictionary is stripped to only
+    /// include the specified keys. If `fields` is nil, DTOs are returned unchanged.
+    private static func applyFieldSelection(
+        dtos: [ContentEntryResponseDTO],
+        fields: [String]?
+    ) -> [ContentEntryResponseDTO] {
+        guard let fields = fields, !fields.isEmpty else { return dtos }
+
+        let fieldSet = Set(fields)
+        return dtos.map { dto in
+            guard let dataDict = dto.data.dictionaryValue else { return dto }
+            let filtered = dataDict.filter { fieldSet.contains($0.key) }
+            return ContentEntryResponseDTO(
+                id: dto.id,
+                contentType: dto.contentType,
+                data: .dictionary(filtered),
+                status: dto.status,
+                locale: dto.locale,
+                publishAt: dto.publishAt,
+                unpublishAt: dto.unpublishAt,
+                createdBy: dto.createdBy,
+                updatedBy: dto.updatedBy,
+                tenantId: dto.tenantId,
+                createdAt: dto.createdAt,
+                updatedAt: dto.updatedAt,
+                publishedAt: dto.publishedAt
+            )
+        }
     }
 
     /// Update a content entry.

@@ -6,6 +6,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Flattened project structure by removing the nested `SwiftCMS/SwiftCMS` directory. The project now resides in the repository root for improved tooling compatibility and developer experience.
+- Refactored `Package.swift` to remove redundant explicit paths and added the `CMSCLI` executable target.
+
 ## [0.1.0] - 2026-02-14
 
 ### Added — Wave 1 Foundation Complete

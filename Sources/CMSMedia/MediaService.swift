@@ -3,7 +3,6 @@ import Fluent
 import CMSObjects
 import CMSSchema
 import CMSEvents
-import CMSAuth
 import NIOCore
 
 // MARK: - FileStorageProvider Protocol
@@ -75,6 +74,7 @@ public struct MediaService: Sendable {
     public static func upload(
         file: File,
         storage: FileStorageProvider,
+        providerName: String = "local",
         on db: Database,
         eventBus: EventBus,
         context: CmsContext
@@ -109,7 +109,7 @@ public struct MediaService: Sendable {
             mimeType: mimeType,
             sizeBytes: file.data.readableBytes,
             storagePath: key,
-            provider: "local",
+            provider: providerName,
             tenantId: context.tenantId
         )
         try await media.save(on: db)
@@ -181,12 +181,14 @@ public struct MediaController: RouteCollection {
     @Sendable
     func upload(req: Request) async throws -> Response {
         let file = try req.content.decode(FileUploadDTO.self)
-        let storage = LocalStorageProvider()
+        let storage = req.application.fileStorage
+        let providerName = Environment.get("STORAGE_PROVIDER") ?? "local"
         let user = req.auth.get(CmsUser.self)
         let context = CmsContext(logger: req.logger, userId: user?.userId, tenantId: user?.tenantId)
 
         let response = try await MediaService.upload(
             file: file.file, storage: storage,
+            providerName: providerName,
             on: req.db, eventBus: req.eventBus, context: context
         )
 
@@ -204,7 +206,7 @@ public struct MediaController: RouteCollection {
             throw ApiError.notFound("Media file not found")
         }
 
-        let storage = LocalStorageProvider()
+        let storage = req.application.fileStorage
         try await storage.delete(key: media.storagePath)
         try await media.delete(on: req.db)
 

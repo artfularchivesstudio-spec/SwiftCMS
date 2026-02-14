@@ -1,11 +1,11 @@
 import Vapor
-import Redis
+@preconcurrency import Redis
 import CMSObjects
 
 /// Redis Streams-backed EventBus for multi-instance deployments.
 /// Events are published to Redis streams (cms:{eventName}) and can be
 /// consumed by any instance in the cluster.
-public actor RedisStreamsEventBus: @preconcurrency EventBus {
+public actor RedisStreamsEventBus: EventBus {
     private var handlers: [String: [(UUID, Any)]] = [:]
     private let redis: RedisClient?
     private let consumerGroup: String
@@ -28,10 +28,10 @@ public actor RedisStreamsEventBus: @preconcurrency EventBus {
                 _ = try await redis.send(
                     command: "XADD",
                     with: [
-                        RESPValue(from: "cms:\(eventName)"),
-                        RESPValue(from: "*"),
-                        RESPValue(from: "payload"),
-                        RESPValue(from: payloadString),
+                        .init(from: "cms:\(eventName)"),
+                        .init(from: "*"),
+                        .init(from: "payload"),
+                        .init(from: payloadString),
                     ]
                 ).get()
                 context.logger.debug("Redis Streams: published \(eventName)")
@@ -54,17 +54,30 @@ public actor RedisStreamsEventBus: @preconcurrency EventBus {
     }
 
     @discardableResult
-    public func subscribe<E: CmsEvent>(_ type: E.Type, handler: @escaping @Sendable (E, CmsContext) async throws -> Void) -> UUID {
+    public nonisolated func subscribe<E: CmsEvent>(_ type: E.Type, handler: @escaping @Sendable (E, CmsContext) async throws -> Void) -> UUID {
         let id = UUID()
-        let eventName = E.eventName
+        Task {
+            await self.addHandler(eventName: E.eventName, id: id, handler: handler)
+        }
+        return id
+    }
+
+    public nonisolated func unsubscribe(id: UUID) {
+        Task {
+            await self.removeHandler(id: id)
+        }
+    }
+
+    // MARK: - Private
+
+    private func addHandler(eventName: String, id: UUID, handler: Any) {
         if handlers[eventName] == nil {
             handlers[eventName] = []
         }
         handlers[eventName]?.append((id, handler))
-        return id
     }
 
-    public func unsubscribe(id: UUID) {
+    private func removeHandler(id: UUID) {
         for (key, value) in handlers {
             handlers[key] = value.filter { $0.0 != id }
         }

@@ -49,7 +49,7 @@ public struct SchemaValidator: Sendable {
                 }
             }
         } catch {
-            return [ValidationError(message: "Schema validation error: \(error.localizedDescription)")]
+            return [ValidationError(message: "Schema validation failed: \(error.localizedDescription)")]
         }
     }
 

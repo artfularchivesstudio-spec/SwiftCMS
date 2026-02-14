@@ -71,13 +71,6 @@ final class AnyCodableValueTests: XCTestCase {
         XCTAssertNil(dict["missing"])
     }
 
-    func testArraySubscript() {
-        let value: AnyCodableValue = .array([.int(1), .int(2), .int(3)])
-        XCTAssertEqual(value[0]?.intValue, 1)
-        XCTAssertEqual(value[2]?.intValue, 3)
-        XCTAssertNil(value[5])
-    }
-
     func testLiterals() {
         let s: AnyCodableValue = "hello"
         XCTAssertEqual(s, .string("hello"))

@@ -7,8 +7,8 @@
 
 ## Quick Start
 ```bash
-git clone https://github.com/swiftcms/swiftcms.git
-cd swiftcms
+git clone https://github.com/artfularchivesstudio-spec/SwiftCMS.git
+cd Swift-CMS
 cp .env.example .env
 make setup   # starts Docker services + builds
 make run     # starts the server

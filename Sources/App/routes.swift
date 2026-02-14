@@ -4,8 +4,8 @@ import CMSApi
 import CMSAdmin
 import CMSAuth
 import CMSMedia
-import CMSObjects
 import CMSSchema
+import CMSObjects
 
 /// Register all application routes.
 public func routes(_ app: Application) throws {
@@ -17,7 +17,7 @@ public func routes(_ app: Application) throws {
     app.get("ready") { req async throws -> Response in
         // Check database
         do {
-            _ = try await CMSSchema.User.query(on: req.db).first()
+            _ = try await ContentTypeDefinition.query(on: req.db).all()
         } catch {
             let res = Response(status: .serviceUnavailable)
             try res.content.encode(["status": "database unavailable"])
@@ -33,30 +33,31 @@ public func routes(_ app: Application) throws {
     }
 
     // ─── API v1 ───────────────────────────────────────────────────
-    var api = app.grouped("api", "v1")
+    let api = app.grouped("api", "v1")
         .grouped(RateLimitMiddleware())
         .grouped(ResponseCacheMiddleware(ttl: 300))
 
     // Auth middleware (optional - allows unauthenticated for public reads)
     let authProvider = app.storage[AuthProviderKey.self]
+    var protectedApi = api
     if let provider = authProvider {
-        api = api.grouped(provider.middleware())
+        protectedApi = api.grouped(provider.middleware())
     }
 
     // Content type management
-    try api.register(collection: ContentTypeController())
+    try protectedApi.register(collection: ContentTypeController())
 
     // Dynamic content CRUD
-    try api.register(collection: DynamicContentController())
+    try protectedApi.register(collection: DynamicContentController())
 
     // Media endpoints
-    try api.register(collection: MediaController())
+    try protectedApi.register(collection: MediaController())
 
     // Search
-    try api.register(collection: SearchController())
+    try protectedApi.register(collection: SearchController())
 
     // Preview endpoints
-    try api.register(collection: PreviewController())
+    try protectedApi.register(collection: PreviewController())
 
     // Bulk operations
     try app.register(collection: BulkOperationsController())
@@ -68,9 +69,9 @@ public func routes(_ app: Application) throws {
     api.post("auth", "login") { req async throws -> TokenResponseDTO in
         let dto = try req.content.decode(LoginDTO.self)
 
-        guard let user = try await CMSSchema.User.query(on: req.db)
-            .filter(\.$email == dto.email)
-            .with(\.$role)
+        guard let user = try await User.query(on: req.db)
+            .filter(\User.$email == dto.email)
+            .with(\User.$role)
             .first(),
               let passwordHash = user.passwordHash,
               try Bcrypt.verify(dto.password, created: passwordHash)

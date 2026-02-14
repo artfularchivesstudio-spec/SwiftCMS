@@ -28,15 +28,8 @@ public struct S3StorageProvider: FileStorageProvider, Sendable {
     public func download(key: String) async throws -> ByteBuffer {
         let request = S3.GetObjectRequest(bucket: bucket, key: key)
         let response = try await s3.getObject(request)
-        var buffer = ByteBufferAllocator().buffer(capacity: 0)
-        for try await chunk in response.body {
-            var chunkBuffer = chunk
-            buffer.writeBuffer(&chunkBuffer)
-        }
-        guard buffer.readableBytes > 0 else {
-            throw Abort(.notFound, reason: "File not found in S3: \(key)")
-        }
-        return buffer
+        let body = try await response.body.collect(upTo: .max)
+        return body
     }
 
     public func delete(key: String) async throws {
@@ -50,9 +43,9 @@ public struct S3StorageProvider: FileStorageProvider, Sendable {
 
     /// Generate a presigned URL for temporary access (1hr expiry).
     public func presignedURL(key: String, expiresIn: TimeInterval = 3600) async throws -> String {
-        let url = URL(string: "https://\(bucket).s3.amazonaws.com/\(key)")!
+        _ = S3.GetObjectRequest(bucket: bucket, key: key)
         let signedURL = try await s3.signURL(
-            url: url,
+            url: URL(string: "https://\(bucket).s3.amazonaws.com/\(key)")!,
             httpMethod: .GET,
             expires: .seconds(Int64(expiresIn))
         )

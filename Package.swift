@@ -20,6 +20,7 @@ let package = Package(
         .library(name: "CMSJobs", targets: ["CMSJobs"]),
         .library(name: "CMSApi", targets: ["CMSApi"]),
         .library(name: "CMSAdmin", targets: ["CMSAdmin"]),
+        .executable(name: "cms", targets: ["CMSCLI"]),
     ],
     dependencies: [
         // Vapor & Fluent
@@ -60,8 +61,19 @@ let package = Package(
                 "CMSEvents",
                 "CMSJobs",
                 "CMSObjects",
-            ],
-            path: "Sources/App"
+            ]
+        ),
+
+        // ─── CMSCLI (Management CLI) ────────────────────────────────
+        .executableTarget(
+            name: "CMSCLI",
+            dependencies: [
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "Vapor", package: "vapor"),
+                "CMSCore",
+                "CMSSchema",
+                "CMSObjects",
+            ]
         ),
 
         // ─── CMSObjects (Shared DTOs) ───────────────────────────────
@@ -69,8 +81,7 @@ let package = Package(
             name: "CMSObjects",
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
-            ],
-            path: "Sources/CMSObjects"
+            ]
         ),
 
         // ─── CMSCore (Module System) ────────────────────────────────
@@ -79,8 +90,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
                 "CMSObjects",
-            ],
-            path: "Sources/CMSCore"
+            ]
         ),
 
         // ─── CMSEvents (EventBus) ───────────────────────────────────
@@ -105,12 +115,10 @@ let package = Package(
                 .product(name: "FluentPostgresDriver", package: "fluent-postgres-driver"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
                 .product(name: "JSONSchema", package: "JSONSchema.swift"),
-                .product(name: "QueuesRedisDriver", package: "queues-redis-driver"),
                 "CMSCore",
                 "CMSObjects",
                 "CMSEvents",
-            ],
-            path: "Sources/CMSSchema"
+            ]
         ),
 
         // ─── CMSAuth ────────────────────────────────────────────────
@@ -123,8 +131,7 @@ let package = Package(
                 "CMSCore",
                 "CMSSchema",
                 "CMSObjects",
-            ],
-            path: "Sources/CMSAuth"
+            ]
         ),
 
         // ─── CMSMedia ───────────────────────────────────────────────
@@ -138,9 +145,7 @@ let package = Package(
                 "CMSSchema",
                 "CMSObjects",
                 "CMSEvents",
-                "CMSAuth",
-            ],
-            path: "Sources/CMSMedia"
+            ]
         ),
 
         // ─── CMSSearch ──────────────────────────────────────────────
@@ -148,12 +153,12 @@ let package = Package(
             name: "CMSSearch",
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
+                .product(name: "Fluent", package: "fluent"),
                 "CMSCore",
                 "CMSSchema",
                 "CMSObjects",
                 "CMSEvents",
-            ],
-            path: "Sources/CMSSearch"
+            ]
         ),
 
         // ─── CMSJobs ────────────────────────────────────────────────
@@ -167,8 +172,7 @@ let package = Package(
                 "CMSSchema",
                 "CMSObjects",
                 "CMSEvents",
-            ],
-            path: "Sources/CMSJobs"
+            ]
         ),
 
         // ─── CMSApi (REST + GraphQL) ────────────────────────────────
@@ -184,8 +188,7 @@ let package = Package(
                 "CMSEvents",
                 "CMSMedia",
                 "CMSSearch",
-            ],
-            path: "Sources/CMSApi"
+            ]
         ),
 
         // ─── CMSAdmin ───────────────────────────────────────────────
@@ -201,8 +204,7 @@ let package = Package(
                 "CMSAuth",
                 "CMSEvents",
                 "CMSMedia",
-            ],
-            path: "Sources/CMSAdmin"
+            ]
         ),
 
         // ─── Tests ──────────────────────────────────────────────────
@@ -211,32 +213,28 @@ let package = Package(
             dependencies: [
                 .product(name: "XCTVapor", package: "vapor"),
                 "App",
-            ],
-            path: "Tests/AppTests"
+            ]
         ),
         .testTarget(
             name: "CMSObjectsTests",
             dependencies: [
                 .product(name: "XCTVapor", package: "vapor"),
                 "CMSObjects",
-            ],
-            path: "Tests/CMSObjectsTests"
+            ]
         ),
         .testTarget(
             name: "CMSCoreTests",
             dependencies: [
                 .product(name: "XCTVapor", package: "vapor"),
                 "CMSCore",
-            ],
-            path: "Tests/CMSCoreTests"
+            ]
         ),
         .testTarget(
             name: "CMSEventsTests",
             dependencies: [
                 .product(name: "XCTVapor", package: "vapor"),
                 "CMSEvents",
-            ],
-            path: "Tests/CMSEventsTests"
+            ]
         ),
         .testTarget(
             name: "CMSSchemaTests",
@@ -244,16 +242,14 @@ let package = Package(
                 .product(name: "XCTVapor", package: "vapor"),
                 .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
                 "CMSSchema",
-            ],
-            path: "Tests/CMSSchemaTests"
+            ]
         ),
         .testTarget(
             name: "CMSAuthTests",
             dependencies: [
                 .product(name: "XCTVapor", package: "vapor"),
                 "CMSAuth",
-            ],
-            path: "Tests/CMSAuthTests"
+            ]
         ),
     ]
 )

@@ -10,7 +10,7 @@ SwiftCMS brings Strapi's flexibility to Swift's performance — runtime-defined 
 ## Quick Start
 
 ```bash
-git clone https://github.com/swiftcms/swiftcms.git && cd swiftcms
+git clone https://github.com/artfularchivesstudio-spec/SwiftCMS.git && cd Swift-CMS
 cp .env.example .env
 docker compose up -d postgres redis meilisearch
 swift build && swift run App serve --hostname 0.0.0.0 --port 8080

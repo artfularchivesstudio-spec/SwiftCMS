@@ -220,7 +220,7 @@ public struct ContentTypeImportExportController: RouteCollection {
             slug: typeDef.slug,
             displayName: typeDef.displayName,
             description: typeDef.description,
-            kind: typeDef.kind,
+            kind: ContentTypeKind(rawValue: typeDef.kind) ?? .collection,
             jsonSchema: typeDef.jsonSchema,
             fieldOrder: typeDef.fieldOrder,
             settings: typeDef.settings
@@ -246,17 +246,14 @@ public struct ContentTypeImportExportController: RouteCollection {
             throw ApiError.conflict("Content type '\(importData.slug)' already exists")
         }
 
-        let kind = ContentTypeKind(rawValue: importData.kind) ?? .collection
-        let fieldOrder = importData.fieldOrder ?? .array([])
-
         let definition = ContentTypeDefinition(
             name: importData.name,
             slug: importData.slug,
             displayName: importData.displayName,
             description: importData.description,
-            kind: kind,
+            kind: importData.kind,
             jsonSchema: importData.jsonSchema,
-            fieldOrder: fieldOrder
+            fieldOrder: importData.fieldOrder ?? .array([])
         )
         if let settings = importData.settings {
             definition.settings = settings
@@ -275,7 +272,7 @@ struct ContentTypeExport: Content {
     let slug: String
     let displayName: String
     let description: String?
-    let kind: String
+    let kind: ContentTypeKind
     let jsonSchema: AnyCodableValue
     let fieldOrder: AnyCodableValue?
     let settings: AnyCodableValue?

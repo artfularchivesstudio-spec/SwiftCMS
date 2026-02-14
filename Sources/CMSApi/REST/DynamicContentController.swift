@@ -32,6 +32,15 @@ public struct DynamicContentController: RouteCollection {
     // MARK: - List
 
     /// GET /api/v1/:contentType
+    ///
+    /// Supported query parameters:
+    /// - `page` (Int): Page number (1-based). Defaults to 1.
+    /// - `perPage` (Int): Items per page (max 100). Defaults to 25.
+    /// - `status` (String): Filter by content status (e.g., "published", "draft").
+    /// - `locale` (String): Filter by locale (e.g., "en-US").
+    /// - `sort` (String): Sort by a JSONB field, format: `fieldName:asc` or `fieldName:desc`.
+    /// - `filter[fieldName]` (String): Filter by JSONB field value. Multiple filters supported.
+    /// - `fields` (String): Comma-separated list of JSONB field names for sparse fieldsets.
     @Sendable
     func list(req: Request) async throws -> PaginationWrapper<ContentEntryResponseDTO> {
         let contentType = try req.parameters.require("contentType")
@@ -41,7 +50,30 @@ public struct DynamicContentController: RouteCollection {
         let status = req.query[String.self, at: "status"]
         let locale = req.query[String.self, at: "locale"]
         let sort = req.query[String.self, at: "sort"]
-        let sortDir = sort?.contains(":asc") == true ? "asc" : "desc"
+
+        // Parse sort parameter: "fieldName:asc" or "fieldName:desc"
+        var sortField: String? = nil
+        var sortDir = "desc"
+        if let sort = sort, !sort.isEmpty {
+            let parts = sort.split(separator: ":", maxSplits: 1)
+            sortField = String(parts[0])
+            if parts.count > 1 {
+                sortDir = String(parts[1]).lowercased() == "asc" ? "asc" : "desc"
+            }
+        }
+
+        // Parse filter[fieldName]=value query parameters from the URL query string.
+        // Vapor does not natively decode bracket-notation keys, so we parse the raw
+        // URL query string to extract them.
+        let filters = Self.parseFilterParams(from: req)
+
+        // Parse fields parameter: "title,body,status" -> ["title", "body", "status"]
+        let fields: [String]?
+        if let fieldsParam = req.query[String.self, at: "fields"], !fieldsParam.isEmpty {
+            fields = fieldsParam.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
+        } else {
+            fields = nil
+        }
 
         return try await ContentEntryService.list(
             contentType: contentType,
@@ -50,8 +82,46 @@ public struct DynamicContentController: RouteCollection {
             perPage: perPage,
             status: status,
             locale: locale,
-            sortDirection: sortDir
+            sortField: sortField,
+            sortDirection: sortDir,
+            filters: filters,
+            fields: fields
         )
+    }
+
+    /// Parses `filter[fieldName]=value` query parameters from the request URL.
+    ///
+    /// Iterates over the raw URL query string components to find parameters matching
+    /// the `filter[...]` pattern and returns them as a dictionary.
+    /// - Parameter req: The incoming HTTP request.
+    /// - Returns: A dictionary of filter field names to values, or nil if no filters found.
+    private static func parseFilterParams(from req: Request) -> [String: String]? {
+        guard let queryString = req.url.query else { return nil }
+
+        var filters: [String: String] = [:]
+        let pairs = queryString.split(separator: "&")
+        for pair in pairs {
+            let keyValue = pair.split(separator: "=", maxSplits: 1)
+            guard keyValue.count == 2 else { continue }
+
+            let rawKey = String(keyValue[0])
+            let rawValue = String(keyValue[1])
+                .removingPercentEncoding ?? String(keyValue[1])
+
+            // Match filter[fieldName] pattern
+            if rawKey.hasPrefix("filter%5B") || rawKey.hasPrefix("filter[") {
+                let decodedKey = rawKey.removingPercentEncoding ?? rawKey
+                if decodedKey.hasPrefix("filter["),
+                   decodedKey.hasSuffix("]") {
+                    let fieldName = String(decodedKey.dropFirst("filter[".count).dropLast(1))
+                    if !fieldName.isEmpty {
+                        filters[fieldName] = rawValue
+                    }
+                }
+            }
+        }
+
+        return filters.isEmpty ? nil : filters
     }
 
     // MARK: - Create

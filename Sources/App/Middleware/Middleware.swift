@@ -36,32 +36,31 @@ public struct RateLimitMiddleware: AsyncMiddleware, Sendable {
         }
 
         // Check Redis if available
-        let redis = request.redis
         do {
             let key = RedisKey(identifier)
-            let current = try await redis.increment(key).get()
+            let current = try await request.redis.increment(key).get()
             if current == 1 {
-                _ = try await redis.expire(key, after: .seconds(Int64(window))).get()
+                _ = try await request.redis.expire(key, after: .seconds(Int64(window))).get()
             }
 
-            if current > limit {
-                var headers = HTTPHeaders()
-                headers.add(name: "Retry-After", value: "\(window)")
-                headers.add(name: "X-RateLimit-Limit", value: "\(limit)")
-                headers.add(name: "X-RateLimit-Remaining", value: "0")
-                throw ApiError.tooManyRequests("Rate limit exceeded. Try again in \(window) seconds.")
-            }
+                if current > limit {
+                    var headers = HTTPHeaders()
+                    headers.add(name: "Retry-After", value: "\(window)")
+                    headers.add(name: "X-RateLimit-Limit", value: "\(limit)")
+                    headers.add(name: "X-RateLimit-Remaining", value: "0")
+                    throw ApiError.tooManyRequests("Rate limit exceeded. Try again in \(window) seconds.")
+                }
 
-            let response = try await next.respond(to: request)
-            response.headers.add(name: "X-RateLimit-Limit", value: "\(limit)")
-            response.headers.add(name: "X-RateLimit-Remaining", value: "\(max(0, limit - Int(current)))")
-            return response
-        } catch let error as ApiError {
-            throw error
-        } catch {
-            // Redis unavailable or other error, fall through
-            request.logger.warning("Rate limiting error: \(error)")
-        }
+                let response = try await next.respond(to: request)
+                response.headers.add(name: "X-RateLimit-Limit", value: "\(limit)")
+                response.headers.add(name: "X-RateLimit-Remaining", value: "\(max(0, limit - Int(current)))")
+                return response
+            } catch let error as ApiError {
+                throw error
+            } catch {
+                // Redis unavailable, fall through
+                request.logger.warning("Rate limiting unavailable: \(error)")
+            }
 
         return try await next.respond(to: request)
     }
@@ -91,9 +90,8 @@ public struct ResponseCacheMiddleware: AsyncMiddleware, Sendable {
         let cacheKey = "cache:\(request.url.path)?\(request.url.query ?? "")"
 
         // Check cache
-        let redis = request.redis
         do {
-            if let cached = try await redis.get(RedisKey(cacheKey), as: String.self).get() {
+            if let cached = try await request.redis.get(RedisKey(cacheKey), as: String.self).get() {
                 let response = Response(status: .ok)
                 response.body = .init(string: cached)
                 response.headers.contentType = .json
@@ -111,12 +109,11 @@ public struct ResponseCacheMiddleware: AsyncMiddleware, Sendable {
 
         // Store in cache if successful
         if response.status == .ok {
-            let redis = request.redis
             if let body = response.body.string {
                 do {
                     let key = RedisKey(cacheKey)
-                    _ = try await redis.set(key, to: body).get()
-                    _ = try await redis.expire(key, after: .seconds(Int64(ttl))).get()
+                    _ = try await request.redis.set(key, to: body).get()
+                    _ = try await request.redis.expire(key, after: .seconds(Int64(ttl))).get()
                 } catch {
                     request.logger.debug("Cache store failed: \(error)")
                 }

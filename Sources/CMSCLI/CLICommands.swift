@@ -4,6 +4,7 @@ import ArgumentParser
 // MARK: - Root Command
 
 /// SwiftCMS command-line tool.
+@main
 public struct CMSCommand: ParsableCommand {
     public static let configuration = CommandConfiguration(
         commandName: "cms",
@@ -274,89 +275,7 @@ struct ImportStrapiCommand: ParsableCommand {
     }
 }
 
-/// Parses Strapi's schema.json files into SwiftCMS type definitions.
-struct StrapiSchemaParser {
-    let projectPath: String
 
-    /// Strapi field type to SwiftCMS field type mapping.
-    static let typeMapping: [String: String] = [
-        "string": "shortText",
-        "text": "longText",
-        "richtext": "richText",
-        "integer": "integer",
-        "biginteger": "integer",
-        "float": "decimal",
-        "decimal": "decimal",
-        "boolean": "boolean",
-        "date": "dateTime",
-        "datetime": "dateTime",
-        "time": "dateTime",
-        "email": "email",
-        "enumeration": "enumeration",
-        "json": "json",
-        "media": "media",
-        "relation": "relationHasOne",
-        "uid": "shortText",
-        "password": "shortText",
-    ]
-
-    struct ParsedType {
-        let name: String
-        let slug: String
-        let fields: [(name: String, type: String, required: Bool)]
-    }
-
-    func parseSchemas() throws -> [ParsedType] {
-        let apiPath = "\(projectPath)/src/api"
-        let fm = FileManager.default
-
-        guard fm.fileExists(atPath: apiPath) else {
-            print("Warning: No src/api/ directory found at \(projectPath)")
-            return []
-        }
-
-        var types: [ParsedType] = []
-        let contents = try fm.contentsOfDirectory(atPath: apiPath)
-
-        for dir in contents {
-            let schemaGlob = "\(apiPath)/\(dir)/content-types"
-            guard fm.fileExists(atPath: schemaGlob) else { continue }
-
-            let typeContents = try fm.contentsOfDirectory(atPath: schemaGlob)
-            for typeDir in typeContents {
-                let schemaPath = "\(schemaGlob)/\(typeDir)/schema.json"
-                guard fm.fileExists(atPath: schemaPath) else { continue }
-
-                let data = try Data(contentsOf: URL(fileURLWithPath: schemaPath))
-                guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let info = json["info"] as? [String: Any],
-                      let singularName = info["singularName"] as? String,
-                      let attributes = json["attributes"] as? [String: Any] else {
-                    continue
-                }
-
-                var fields: [(String, String, Bool)] = []
-                for (fieldName, fieldDef) in attributes {
-                    guard let def = fieldDef as? [String: Any],
-                          let strapiType = def["type"] as? String else {
-                        continue
-                    }
-                    let cmsType = StrapiSchemaParser.typeMapping[strapiType] ?? "shortText"
-                    let required = def["required"] as? Bool ?? false
-                    fields.append((fieldName, cmsType, required))
-                }
-
-                types.append(ParsedType(
-                    name: singularName.capitalized,
-                    slug: singularName,
-                    fields: fields
-                ))
-            }
-        }
-
-        return types
-    }
-}
 
 // MARK: - Export
 
