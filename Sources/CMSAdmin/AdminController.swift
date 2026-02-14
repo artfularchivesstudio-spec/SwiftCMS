@@ -8,16 +8,60 @@ import CMSAuth
 import CMSEvents
 import CMSMedia
 
-// MARK: - Admin Controller
-
-/// Main admin panel controller.
-/// Routes: /admin
+/// 🎛️ **Admin Controller**
+///
+/// The main administrative interface controller for SwiftCMS.
+/// Handles all admin panel functionality including dashboard, content management,
+/// user management, media management, and system settings.
+///
+/// ### Core Features:
+/// - 📊 **Dashboard**: Overview metrics and recent content
+/// - 🗂️ **Content Management**: CRUD operations for all content types
+/// - 📝 **Content Type Builder**: Visual schema builder
+/// - 🖼️ **Media Library**: File upload and management
+/// - 👥 **User Management**: User and role administration
+/// - 🔗 **Webhooks**: Outbound integration management
+/// - ⚙️ **Settings**: System configuration
+/// - 📦 **Bulk Operations**: Batch content operations
+/// - 🔍 **Search**: Global search functionality
+///
+/// ### Authentication & Security:
+/// - Session-based authentication with middleware protection
+/// - Role-based access control (RBAC)
+/// - CSRF protection on all state-changing operations
+/// - Secure file upload handling
+///
+/// ### UI Framework:
+/// - DaisyUI + Tailwind CSS for consistent styling
+/// - HTMX for dynamic interactions
+/// - Alpine.js for reactive components
+/// - Leaf templating engine
+///
+/// ### Performance:
+/// - Efficient database queries with proper indexing
+/// - Optimized media handling with size limits
+/// - Lazy loading for large content lists
+/// - Background job processing for bulk operations
 public struct AdminController: RouteCollection, Sendable {
-
     public init() {}
 
+    /// 🚀 **Boot**
+    ///
+    /// Registers all admin routes with proper middleware and route groups.
+    /// Sets up authentication protection for sensitive routes.
+    ///
+    /// ### Route Structure:
+    /// - Public routes (login, logout)
+    /// - Protected routes (require authentication)
+    /// - Media upload endpoints with size limits
+    /// - API endpoints for HTMX interactions
+    ///
+    /// - Parameter routes: The routes builder to register endpoints on
     public func boot(routes: any RoutesBuilder) throws {
         let admin = routes.grouped("admin")
+
+        // Media upload (JSON) for EasyMDE
+        admin.on(.POST, "media", "upload", "json", body: .collect(maxSize: "50mb"), use: adminMediaUploadJson)
 
         // Public routes
         admin.get("login", use: loginPage)
@@ -69,18 +113,34 @@ public struct AdminController: RouteCollection, Sendable {
 
     // MARK: - Shared Context Helpers
 
-    /// Lightweight DTO for sidebar/command palette content type listing.
+    /// 📋 **Sidebar Content Type DTO**
+    ///
+    /// Lightweight data transfer object for populating the admin sidebar
+    /// with content type navigation items.
     struct SidebarContentType: Encodable {
         let slug: String
         let displayName: String
     }
 
-    /// Fetches all content types as lightweight DTOs for sidebar/command palette.
+    /// 🗂️ **Fetch Sidebar Types**
+    ///
+    /// Retrieves all content types for sidebar navigation.
+    /// Sorted alphabetically for consistent ordering.
+    ///
+    /// ### Usage:
+    /// - Populates admin sidebar navigation
+    /// - Used in command palette search
+    /// - Provides quick access to content types
+    ///
+    /// - Parameter db: Database connection for querying
+    /// - Returns: Array of SidebarContentType DTOs
     private func fetchSidebarTypes(on db: any Database) async throws -> [SidebarContentType] {
-        try await ContentTypeDefinition.query(on: db)
+        let types = try await ContentTypeDefinition.query(on: db)
             .sort(\.$name)
             .all()
             .map { SidebarContentType(slug: $0.slug, displayName: $0.displayName) }
+
+        return types
     }
 
     // MARK: - Dashboard
@@ -96,6 +156,15 @@ public struct AdminController: RouteCollection, Sendable {
             .limit(10)
             .all()
 
+        // Analytics: Fetch recent audit logs
+        let auditLogs = try await AuditLog.query(on: req.db)
+            .sort(\.$createdAt, .descending)
+            .limit(10)
+            .all()
+
+        // Analytics: Fetch DLQ count for system health
+        let dlqCount = try await DeadLetterEntry.query(on: req.db).count()
+
         let sidebarTypes = try await fetchSidebarTypes(on: req.db)
 
         struct DashboardContext: Encodable {
@@ -103,6 +172,8 @@ public struct AdminController: RouteCollection, Sendable {
             let typeCount: Int
             let entryCount: Int
             let recentEntries: [ContentEntry]
+            let auditLogs: [AuditLog]
+            let dlqCount: Int
             let activePage: String
             let contentTypes: [SidebarContentType]
         }
@@ -112,6 +183,8 @@ public struct AdminController: RouteCollection, Sendable {
             typeCount: typeCount,
             entryCount: entryCount,
             recentEntries: recentEntries,
+            auditLogs: auditLogs,
+            dlqCount: dlqCount,
             activePage: "dashboard",
             contentTypes: sidebarTypes
         ))
@@ -875,6 +948,26 @@ public struct AdminController: RouteCollection, Sendable {
         )
 
         return req.redirect(to: "/admin/media")
+    }
+
+    /// POST /admin/media/upload/json (multipart form, returns JSON)
+    @Sendable
+    func adminMediaUploadJson(req: Request) async throws -> Response {
+        let upload = try req.content.decode(FileUploadDTO.self)
+        let storage = req.application.fileStorage
+        let providerName = Environment.get("STORAGE_PROVIDER") ?? "local"
+        let userId = req.auth.get(User.self)?.id?.uuidString
+        let context = CmsContext(logger: req.logger, userId: userId)
+
+        let media = try await MediaService.upload(
+            file: upload.file, storage: storage,
+            providerName: providerName,
+            on: req.db, eventBus: req.eventBus, context: context
+        )
+
+        let res = Response(status: .created)
+        try res.content.encode(media)
+        return res
     }
 
     // MARK: - Bulk Operations (Wave 3)

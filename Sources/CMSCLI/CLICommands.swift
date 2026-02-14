@@ -36,6 +36,40 @@ public struct CMSCommand: ParsableCommand {
 
 // MARK: - Serve
 
+/// 🖥️ **`cms serve` - Start SwiftCMS Server**
+///
+/// Starts the SwiftCMS HTTP server with configurable hostname and port.
+///
+/// ## Usage
+/// ```bash
+/// cms serve [--hostname <host>] [--port <number>]
+/// ```
+///
+/// ## Options
+/// - `--hostname <host>` - Server bind address (default: `0.0.0.0`)
+/// - `--port <number>` - Server port (default: `8080`)
+///
+/// ## Examples
+/// ```bash
+/// # Start on default address and port
+/// cms serve
+///
+/// # Start on custom host and port
+/// cms serve --hostname localhost --port 3000
+///
+/// # Start on production server
+/// cms serve --hostname 0.0.0.0 --port 443
+/// ```
+///
+/// ## 📊 Output
+/// ```
+/// Starting SwiftCMS on 0.0.0.0:8080
+/// Server startup logs...
+/// ```
+///
+/// ## 🔌 Integration
+/// The serve command delegates to Vapor's built-in server infrastructure,
+/// automatically loading configuration, middleware, and routes from all modules.
 struct ServeCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "serve",
@@ -56,6 +90,46 @@ struct ServeCommand: ParsableCommand {
 
 // MARK: - Migrate
 
+/// 🖥️ **`cms migrate` - Database Migration Management**
+///
+/// Runs pending database migrations or reverts existing ones.
+///
+/// ## Usage
+/// ```bash
+/// cms migrate [--revert] [--yes]
+/// ```
+///
+/// ## Options
+/// - `--revert` - Revert the last migration batch
+/// - `--yes` - Auto-confirm operations without prompting
+///
+/// ## Examples
+/// ```bash
+/// # Run pending migrations
+/// cms migrate
+///
+/// # Revert last migration batch
+/// cms migrate --revert
+///
+/// # Auto-confirm migration run
+/// cms migrate --yes
+/// ```
+///
+/// ## 📊 Output
+/// ### Success - Run Migrations
+/// ```
+/// Running pending migrations...
+/// [CreateContentTypeDefinitions] ✓
+/// [CreateContentEntries] ✓
+/// ...
+/// Migration complete: 6 migrations run successfully
+/// ```
+///
+/// ## ⚠️ Error Cases
+/// ```
+/// Error: Database connection failed
+/// Reason: Unable to connect to PostgreSQL
+/// ```
 struct MigrateCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "migrate",
@@ -79,6 +153,29 @@ struct MigrateCommand: ParsableCommand {
 
 // MARK: - Seed
 
+/// 🖥️ **`cms seed` - Seed Database with Default Data**
+///
+/// Populates the database with default roles and an admin user for initial setup.
+///
+/// ## Usage
+/// ```bash
+/// cms seed
+/// ```
+///
+/// ## 📊 Output
+/// ```
+/// Seeding database with default roles and admin user...
+/// ✓ Created role: Super Admin
+/// ✓ Created role: Editor
+/// ✓ Created admin user: admin@swiftcms.local
+///
+/// ⚠️  Change the admin password immediately!
+/// ```
+///
+/// ## 🔐 Default Credentials
+/// - **Admin Email**: `admin@swiftcms.local`
+/// - **Admin Password**: Auto-generated, displayed in output
+/// - **Roles**: Super Admin, Editor, Author, Reader
 struct SeedCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "seed",
@@ -92,6 +189,62 @@ struct SeedCommand: ParsableCommand {
 
 // MARK: - Generate SDK
 
+/// 🖥️ **`cms generate-sdk` - Generate Typed Client SDKs**
+///
+/// Generates type-safe client SDKs in Swift or TypeScript from content type definitions.
+///
+/// ## Usage
+/// ```bash
+/// cms generate-sdk <language> [--output <path>] [--force]
+/// cms generate-sdk swift [--output <path>]
+/// cms generate-sdk typescript [--output <path>]
+/// ```
+///
+/// ## Arguments
+/// - `<language>` - Target language: `swift` or `typescript` (required)
+///
+/// ## Options
+/// - `--output <path>` - Output directory (default: `./ClientSDK`)
+/// - `--force` - Override schema hash cache and force regeneration
+///
+/// ## Examples
+/// ```bash
+/// # Generate Swift SDK in default directory
+/// cms generate-sdk swift
+///
+/// # Generate TypeScript definitions in custom path
+/// cms generate-sdk typescript --output ./frontend/src/cmstypes
+///
+/// # Force regeneration without schema checking
+/// cms generate-sdk swift --output ./SDK --force
+/// ```
+///
+/// ## 📊 Output
+/// ### Swift SDK
+/// ```
+/// ⚡ Checking for schema changes...
+/// ✓ No schema changes detected
+///
+/// Generating Swift SDK to ./ClientSDK...
+/// ✓ Created Package.swift
+/// ✓ Created Sources/SwiftCMSClient.swift
+/// ✓ Generated 5 content type models
+/// ```
+///
+/// ### TypeScript SDK
+/// ```
+/// ⚡ Checking for schema changes...
+/// ⚠ Schema for 'article' has changed
+///
+/// Generating TypeScript definitions to ./ClientSDK...
+/// ✓ Created swiftcms.d.ts
+/// ✓ Generated interfaces for 6 content types
+/// ✓ Cached schema hashes
+/// ```
+///
+/// ## 🔍 Schema Hash Caching
+/// The SDK generator uses schema hash caching to avoid unnecessary regeneration.
+/// Cache stored at `<output-dir>/.schemahash`
 struct GenerateSDKCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "generate-sdk",
@@ -350,6 +503,68 @@ struct GenerateSDKCommand: ParsableCommand {
 
 // MARK: - Import Strapi
 
+/// 🖥️ **`cms import-strapi` - Import from Strapi Projects**
+///
+/// Parses Strapi project files and migrates content types and data to SwiftCMS.
+///
+/// ## Usage
+/// ```bash
+/// cms import-strapi --path <project-path> [--db-url <url>] [--dry-run] [--verbose]
+/// ```
+///
+/// ## Options
+/// - `--path <path>` - Path to Strapi project root (required)
+/// - `--db-url <url>` - Database URL (default: env `DATABASE_URL`)
+/// - `--dry-run` - Preview import without making changes
+/// - `--verbose` - Enable verbose logging
+///
+/// ## Examples
+/// ```bash
+/// # Basic import
+/// cms import-strapi --path /projects/my-strapi-app
+///
+/// # Preview changes only
+/// cms import-strapi --path ./strapi --dry-run --verbose
+/// ```
+///
+/// ## 📊 Output
+/// ### Schema Import
+/// ```
+/// Importing from Strapi project at: /projects/my-strapi-app
+/// ⚡ Connected to PostgreSQL database
+///
+/// 🔍 Found 12 content types:
+///   - Article (8 fields)
+///   - Page (6 fields)
+///   ...
+///
+/// 📦 Creating content type definitions...
+/// ✓ Created: Article
+/// ✓ Created: Page
+/// ✓ Created: Product
+///   Created 9/12 content type definitions
+///
+/// 📥 Importing content data...
+/// ✓ Imported 47 entries from article
+/// ✓ Imported 156 entries from product
+///
+/// Import complete!
+/// ✓ Successfully imported 223 content entries
+/// ```
+///
+/// ## 🔄 Strapi Type Mapping
+/// | Strapi Type | SwiftCMS Type |
+/// |-------------|---------------|
+/// | `string` | `shortText` |
+/// | `richtext` | `richText` |
+/// | `media` | `media` |
+/// | `relation` | `relationHasOne` |
+/// | ... | ... |
+///
+/// ## ⚠️ Limitations
+/// - Complex relations are flattened
+/// - Component fields imported as JSON objects
+/// - Media files imported by URL reference only
 struct ImportStrapiCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "import-strapi",
@@ -492,6 +707,65 @@ struct ImportStrapiCommand: ParsableCommand {
 
 // MARK: - Export
 
+/// 🖥️ **`cms export` - Export Content as Static JSON**
+///
+/// Exports published content as static JSON bundles for offline iOS apps or static sites.
+///
+/// ## Usage
+/// ```bash
+/// cms export [--format <format>] [--output <path>] [--locale <locale>] [--since <timestamp>]
+/// ```
+///
+/// ## Options
+/// - `--format <format>` - Output format (default: `static-json`)
+/// - `--output <path>` - Output directory (default: `./bundles`)
+/// - `--locale <locale>` - Locale to export (default: `en-US`)
+/// - `--since <timestamp>` - Only export entries modified after ISO 8601 timestamp
+///
+/// ## Examples
+/// ```bash
+/// # Full export
+/// cms export
+///
+/// # Incremental export
+/// cms export --since 2024-01-15T10:30:00Z
+///
+/// # Export specific locale
+/// cms export --locale es-ES --output ./spanish-bundles
+/// ```
+///
+/// ## 📊 Output
+/// ```
+/// Exporting published content...
+///   Format: static-json
+///   Output: ./bundles
+///   Locale: en-US
+///   Since: 2024-01-15T10:30:00Z (incremental)
+///
+/// Exporting entries:
+///   article: 47 entries
+///   page: 12 entries
+///   product: 156 entries
+///
+/// Generated bundle manifest: bundles/ExportManifest.json
+///
+/// Export complete!
+/// ✓ 215 entries exported
+/// ✓ 3.2 MB total size
+/// ```
+///
+/// ## 📦 Output Structure
+/// ```
+/// bundles/
+/// ├── ExportManifest.json
+/// └── en-US/
+///     ├── article/
+///     │   ├── welcome.json
+///     │   └── ...
+///     ├── page/
+///     │   └── ...
+///     └── ...
+/// ```
 struct ExportCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "export",

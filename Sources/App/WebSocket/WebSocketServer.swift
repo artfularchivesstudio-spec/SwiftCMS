@@ -2,6 +2,7 @@ import Vapor
 import CMSAuth
 import CMSEvents
 import CMSObjects
+import CMSApi
 import Redis
 
 // MARK: - WebSocket Server

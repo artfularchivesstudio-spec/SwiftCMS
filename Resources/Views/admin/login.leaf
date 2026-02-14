@@ -1,38 +1,359 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SwiftCMS</title>
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet">
+    <title>Welcome Back - SwiftCMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+    <style>
+        /* Animated gradient background */
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .gradient-bg {
+            background: linear-gradient(-45deg, #6366f1, #8b5cf6, #ec4899, #f43f5e);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+
+        /* Glassmorphism effect */
+        .glass-card {
+            backdrop-filter: blur(16px) saturate(180%);
+            background-color: rgba(255, 255, 255, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .glass-card.dark {
+            background-color: rgba(30, 30, 46, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Floating label animations */
+        .float-label {
+            position: absolute;
+            top: 50%;
+            left: 1rem;
+            transform: translateY(-50%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            color: #9ca3af;
+        }
+
+        .input-group input:focus ~ .float-label,
+        .input-group input:not(:placeholder-shown) ~ .float-label {
+            top: -0.5rem;
+            transform: translateY(0);
+            font-size: 0.75rem;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 0 0.25rem;
+            border-radius: 0.25rem;
+        }
+
+        .input-group.dark input:focus ~ .float-label,
+        .input-group.dark input:not(:placeholder-shown) ~ .float-label {
+            background: rgba(30, 30, 46, 0.9);
+            color: #a5b4fc;
+        }
+
+        /* Error message slide-in */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        /* Loading spinner */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        /* Custom checkbox */
+        .checkbox-custom {
+            appearance: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid #d1d5db;
+            border-radius: 0.25rem;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .checkbox-custom:checked {
+            background-color: #6366f1;
+            border-color: #6366f1;
+        }
+
+        .checkbox-custom:checked::after {
+            content: '';
+            position: absolute;
+            left: 4px;
+            top: 0;
+            width: 6px;
+            height: 12px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+        }
+    </style>
 </head>
-<body class="bg-base-200 min-h-screen flex items-center justify-center">
-    <div class="card w-96 bg-base-100 shadow-xl">
-        <div class="card-body">
-            <h2 class="card-title justify-center text-2xl mb-2">SwiftCMS</h2>
-            <p class="text-center text-base-content/60 mb-6">Sign in to admin panel</p>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+    <!-- Animated background elements -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-16 -left-16 w-64 h-64 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse"></div>
+        <div class="absolute top-0 -right-16 w-96 h-96 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse" style="animation-delay: 2s;"></div>
+        <div class="absolute -bottom-16 left-32 w-80 h-80 bg-pink-400 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-pulse" style="animation-delay: 4s;"></div>
+    </div>
 
-            #if(error):
-            <div class="alert alert-error mb-4">
-                <span>Invalid email or password.</span>
+    <!-- Theme toggle -->
+    <div x-data="{ darkMode: false }" x-init="darkMode = localStorage.getItem('darkMode') === 'true'"
+         class="fixed top-4 right-4 z-50">
+        <button @click="darkMode = !darkMode; localStorage.setItem('darkMode', darkMode)"
+                class="p-2 rounded-lg backdrop-blur-sm border transition-all"
+                :class="darkMode ? 'bg-gray-800/50 border-gray-700 text-yellow-300' : 'bg-white/50 border-white/30 text-gray-700'">
+            <svg x-show="!darkMode" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+            </svg>
+            <svg x-show="darkMode" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Login card -->
+    <div x-data="loginForm()"
+         x-init="$watch('darkMode', value => isDark = value)"
+         :class="{ 'dark': darkMode }"
+         class="relative z-10 w-full max-w-md">
+        <div class="glass-card rounded-2xl p-8 shadow-2xl"
+             :class="darkMode ? 'dark' : ''">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 dark:bg-indigo-900/50 rounded-full mb-4">
+                    <svg class="w-8 h-8 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h1>
+                <p class="text-gray-600 dark:text-gray-400">Sign in to your admin account</p>
             </div>
-            #endif
 
-            <form method="POST" action="/admin/login">
-                <div class="form-control mb-4">
-                    <label class="label"><span class="label-text">Email</span></label>
-                    <input type="email" name="email" placeholder="admin@swiftcms.dev"
-                           class="input input-bordered" required>
+            <!-- Error message -->
+            <div x-show="errorMessage"
+                 x-transition:enter="slide-in"
+                 class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+                <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                </svg>
+                <p class="text-sm text-red-700 dark:text-red-400" x-text="errorMessage"></p>
+            </div>
+
+            <!-- Login form -->
+            <form @submit.prevent="handleSubmit" method="POST" action="/admin/login">
+                <!-- CSRF token hidden field -->
+                <input type="hidden" name="csrfToken" :value="csrfToken">
+
+                <!-- Email field -->
+                <div class="input-group mb-6" :class="darkMode ? 'dark' : ''">
+                    <input
+                        type="email"
+                        name="email"
+                        x-model="email"
+                        placeholder=" "
+                        class="w-full px-4 py-3 rounded-lg border transition-all duration-300 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 peer"
+                        :class="errors.email ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'"
+                        @blur="validateEmail"
+                        required>
+                    <label class="float-label" :class="errors.email ? 'text-red-500' : ''">Email address</label>
+                    <div x-show="errors.email" class="mt-1 text-sm text-red-500" x-text="errors.email"></div>
                 </div>
-                <div class="form-control mb-6">
-                    <label class="label"><span class="label-text">Password</span></label>
-                    <input type="password" name="password" placeholder="Password"
-                           class="input input-bordered" required>
+
+                <!-- Password field -->
+                <div class="input-group mb-4" :class="darkMode ? 'dark' : ''">
+                    <div class="relative">
+                        <input
+                            :type="showPassword ? 'text' : 'password'"
+                            name="password"
+                            x-model="password"
+                            placeholder=" "
+                            class="w-full px-4 py-3 rounded-lg border transition-all duration-300 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 peer"
+                            :class="errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'"
+                            @blur="validatePassword"
+                            required>
+                        <label class="float-label" :class="errors.password ? 'text-red-500' : ''">Password</label>
+                        <!-- Show/hide password -->
+                        <button type="button" @click="showPassword = !showPassword"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <svg x-show="!showPassword" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path>
+                                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            <svg x-show="showPassword" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clip-rule="evenodd"></path>
+                                <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div x-show="errors.password" class="mt-1 text-sm text-red-500" x-text="errors.password"></div>
                 </div>
-                <button type="submit" class="btn btn-primary w-full">Sign In</button>
+
+                <!-- Remember me & Forgot password -->
+                <div class="flex items-center justify-between mb-6">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="remember" class="checkbox-custom" :class="darkMode ? 'border-gray-600' : 'border-gray-300'">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Remember me</span>
+                    </label>
+                    <a href="/admin/forgot-password" class="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium">
+                        Forgot password?
+                    </a>
+                </div>
+
+                <!-- Submit button -->
+                <button type="submit"
+                        :disabled="isLoading"
+                        class="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 text-white font-semibold rounded-lg transition-colors duration-300 flex items-center justify-center gap-3">
+                    <span x-show="!isLoading">Sign In</span>
+                    <div x-show="isLoading" class="flex items-center gap-2">
+                        <div class="spinner w-5 h-5 border-2 border-white border-t-transparent rounded-full"></div>
+                        <span>Signing in...</span>
+                    </div>
+                </button>
             </form>
+
+            <!-- Divider -->
+            <div class="relative my-8">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-gray-200 dark:border-gray-700"></div>
+                </div>
+                <div class="relative flex justify-center text-sm">
+                    <span class="px-2 bg-white/90 dark:bg-gray-800/50 text-gray-500">or</span>
+                </div>
+            </div>
+
+            <!-- Alternative login options -->
+            <div class="space-y-3">
+                <button type="button"
+                        class="w-full py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-2 transition-colors">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    <span class="text-gray-700 dark:text-gray-200">Continue with Google</span>
+                </button>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    Don't have an account?
+                    <a href="/admin/signup" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium">
+                        Contact admin
+                    </a>
+                </p>
+            </div>
         </div>
     </div>
+
+    <script>
+        function loginForm() {
+            return {
+                darkMode: false,
+                email: '',
+                password: '',
+                showPassword: false,
+                isLoading: false,
+                errorMessage: '',
+                csrfToken: '#(csrfToken ?? "")', // Vapor CSRF token
+                errors: {
+                    email: '',
+                    password: ''
+                },
+
+                validateEmail() {
+                    this.errors.email = '';
+                    if (!this.email) {
+                        this.errors.email = 'Email is required';
+                    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email)) {
+                        this.errors.email = 'Please enter a valid email address';
+                    }
+                    return !this.errors.email;
+                },
+
+                validatePassword() {
+                    this.errors.password = '';
+                    if (!this.password) {
+                        this.errors.password = 'Password is required';
+                    } else if (this.password.length < 8) {
+                        this.errors.password = 'Password must be at least 8 characters';
+                    }
+                    return !this.errors.password;
+                },
+
+                async handleSubmit(event) {
+                    this.errorMessage = '';
+
+                    // Validate form
+                    const emailValid = this.validateEmail();
+                    const passwordValid = this.validatePassword();
+
+                    if (!emailValid || !passwordValid) {
+                        return;
+                    }
+
+                    this.isLoading = true;
+
+                    try {
+                        // Submit form
+                        const formData = new FormData(event.target);
+                        const response = await fetch('/admin/login', {
+                            method: 'POST',
+                            body: formData,
+                            headers: {
+                                'Accept': 'text/html',
+                            }
+                        });
+
+                        if (response.ok) {
+                            // Success - redirect to dashboard
+                            window.location.href = '/admin/dashboard';
+                        } else {
+                            // Error - show message
+                            const html = await response.text();
+                            // Extract error message from response if available
+                            const errorMatch = html.match(/<div class=["']alert alert-error["'][^>]*>(.*?)<\/div>/s);
+                            if (errorMatch) {
+                                this.errorMessage = errorMatch[1].replace(/<[^>]*>/g, '').trim() || 'Invalid email or password.';
+                            } else {
+                                this.errorMessage = 'Invalid email or password.';
+                            }
+                        }
+                    } catch (error) {
+                        this.errorMessage = 'Something went wrong. Please try again.';
+                    } finally {
+                        this.isLoading = false;
+                    }
+                }
+            }
+        }
+    </script>
 </body>
 </html>

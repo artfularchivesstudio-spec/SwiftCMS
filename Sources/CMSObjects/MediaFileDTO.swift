@@ -12,10 +12,12 @@ public struct MediaResponseDTO: Content, Sendable {
     public let altText: String?
     public let metadata: AnyCodableValue?
     public let createdAt: Date?
+    public let thumbnails: [String: String]?
 
     public init(
         id: UUID, filename: String, mimeType: String, sizeBytes: Int,
-        url: String, altText: String?, metadata: AnyCodableValue?, createdAt: Date?
+        url: String, altText: String?, metadata: AnyCodableValue?, createdAt: Date?,
+        thumbnails: [String: String]? = nil
     ) {
         self.id = id
         self.filename = filename
@@ -25,6 +27,7 @@ public struct MediaResponseDTO: Content, Sendable {
         self.altText = altText
         self.metadata = metadata
         self.createdAt = createdAt
+        self.thumbnails = thumbnails
     }
 }
 

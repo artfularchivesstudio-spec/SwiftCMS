@@ -81,6 +81,15 @@ public final class MediaFile: Model, Content, @unchecked Sendable {
     @OptionalField(key: "tenant_id")
     public var tenantId: String?
 
+    @OptionalField(key: "thumbnail_small")
+    public var thumbnailSmall: String?
+
+    @OptionalField(key: "thumbnail_medium")
+    public var thumbnailMedium: String?
+
+    @OptionalField(key: "thumbnail_large")
+    public var thumbnailLarge: String?
+
     @Timestamp(key: "created_at", on: .create)
     public var createdAt: Date?
 
@@ -90,7 +99,8 @@ public final class MediaFile: Model, Content, @unchecked Sendable {
         id: UUID? = nil, filename: String, mimeType: String,
         sizeBytes: Int, storagePath: String, provider: String = "local",
         altText: String? = nil, metadata: AnyCodableValue? = nil,
-        tenantId: String? = nil
+        tenantId: String? = nil, thumbnailSmall: String? = nil,
+        thumbnailMedium: String? = nil, thumbnailLarge: String? = nil
     ) {
         self.id = id
         self.filename = filename
@@ -101,6 +111,9 @@ public final class MediaFile: Model, Content, @unchecked Sendable {
         self.altText = altText
         self.metadata = metadata
         self.tenantId = tenantId
+        self.thumbnailSmall = thumbnailSmall
+        self.thumbnailMedium = thumbnailMedium
+        self.thumbnailLarge = thumbnailLarge
     }
 
     /// Convert to response DTO.
@@ -113,8 +126,25 @@ public final class MediaFile: Model, Content, @unchecked Sendable {
             url: "\(baseURL)/\(storagePath)",
             altText: altText,
             metadata: metadata,
-            createdAt: createdAt
+            createdAt: createdAt,
+            thumbnails: buildThumbnailsDict(baseURL: baseURL)
         )
+    }
+
+    private func buildThumbnailsDict(baseURL: String) -> [String: String]? {
+        var thumbnails: [String: String] = [:]
+
+        if let small = thumbnailSmall {
+            thumbnails["small"] = "\(baseURL)/\(small)"
+        }
+        if let medium = thumbnailMedium {
+            thumbnails["medium"] = "\(baseURL)/\(medium)"
+        }
+        if let large = thumbnailLarge {
+            thumbnails["large"] = "\(baseURL)/\(large)"
+        }
+
+        return thumbnails.isEmpty ? nil : thumbnails
     }
 }
 

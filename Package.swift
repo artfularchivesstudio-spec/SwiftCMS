@@ -202,6 +202,7 @@ let package = Package(
                 "CMSEvents",
                 "CMSMedia",
                 "CMSSearch",
+                "CMSJobs",
             ]
         ),
 

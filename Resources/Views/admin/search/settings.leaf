@@ -1,0 +1,197 @@
+#extend("admin/base")
+
+#set(title)("Search Settings - \(contentType.name)")
+#set(subtitle)("Meilisearch Configuration")
+
+#export("content") {
+    <div class="container mx-auto px-6 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-base-content mb-2">Search Settings</h1>
+                    <p class="text-base-content/60">Configure Meilisearch for <span class="font-medium">#(contentType.name)</span></p>
+                </div>
+                <div class="breadcrumbs text-sm">
+                    <ul>
+                        <li><a href="/admin/content-types">Content Types</a></li>
+                        <li><a href="/admin/content-types/(contentType.slug)">#(contentType.name)</a></li>
+                        <li>Search Settings</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Form -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2">
+                <form hx-post="/admin/search/settings/(contentType.slug)" hx-target="#form-feedback" class="card bg-base-100 shadow-lg">
+                    <div class="card-body">
+                        <h2 class="card-title">Field Configuration</h2>
+
+                        <!-- Searchable Fields -->
+                        <div class="form-control mb-6">
+                            <label class="label">
+                                <span class="label-text">Searchable Fields</span>
+                                <span class="label-text-alt">Fields to include in full-text search</span>
+                            </label>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                                #for(availableFields):
+                                <label class="cursor-pointer label bg-base-200 rounded-lg p-3 hover:bg-base-300 transition-colors">
+                                    <span class="label-text">#($0)</span>
+                                    <input type="checkbox" name="searchableFields[]" value="#($0)" class="checkbox checkbox-primary #(settings.searchableFields.contains($0) ? "checked" : "")" />
+                                </label>
+                                #endfor
+                            </div>
+                        </div>
+
+                        <!-- Filterable Fields -->
+                        <div class="form-control mb-6">
+                            <label class="label">
+                                <span class="label-text">Filterable Fields</span>
+                                <span class="label-text-alt">Fields available for filtering</span>
+                            </label>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                                #for(availableFields):
+                                <label class="cursor-pointer label bg-base-200 rounded-lg p-3 hover:bg-base-300 transition-colors">
+                                    <span class="label-text">#($0)</span>
+                                    <input type="checkbox" name="filterableFields[]" value="#($0)" class="checkbox checkbox-secondary #(settings.filterableFields.contains($0) ? "checked" : "")" />
+                                </label>
+                                #endfor
+                            </div>
+                            <div class="mt-2 p-3 bg-info bg-opacity-10 rounded-lg">
+                                <p class="text-sm text-info">
+                                    <svg class="inline w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    System fields <code class="text-xs">status</code>, <code class="text-xs">createdAt</code>, <code class="text-xs">updatedAt</code> are always filterable
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Sortable Fields -->
+                        <div class="form-control mb-6">
+                            <label class="label">
+                                <span class="label-text">Sortable Fields</span>
+                                <span class="label-text-alt">Fields available for sorting</span>
+                            </label>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                                #for(availableFields):
+                                <label class="cursor-pointer label bg-base-200 rounded-lg p-3 hover:bg-base-300 transition-colors">
+                                    <span class="label-text">#($0)</span>
+                                    <input type="checkbox" name="sortableFields[]" value="#($0)" class="checkbox checkbox-accent #(settings.sortableFields.contains($0) ? "checked" : "")" />
+                                </label>
+                                #endfor
+                            </div>
+                            <div class="mt-2 p-3 bg-info bg-opacity-10 rounded-lg">
+                                <p class="text-sm text-info">
+                                    <svg class="inline w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    System fields <code class="text-xs">createdAt</code>, <code class="text-xs">updatedAt</code> are always sortable
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Facetable Fields -->
+                        <div class="form-control mb-6">
+                            <label class="label">
+                                <span class="label-text">Facetable Fields</span>
+                                <span class="label-text-alt">Fields available for faceted search</span>
+                            </label>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                                #for(availableFields):
+                                <label class="cursor-pointer label bg-base-200 rounded-lg p-3 hover:bg-base-300 transition-colors">
+                                    <span class="label-text">#($0)</span>
+                                    <input type="checkbox" name="facetFields[]" value="#($0)" class="checkbox checkbox-info #(settings.facetableFields.contains($0) ? "checked" : "")" />
+                                </label>
+                                #endfor
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="form-control mt-8 pt-6 border-t border-base-200">
+                            <div class="flex gap-4">
+                                <button type="submit" class="btn btn-primary flex-1">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Save Settings
+                                </button>
+                                <button type="button"
+                                        hx-post="/admin/search/reindex/(contentType.slug)"
+                                        hx-confirm="Are you sure you want to reindex all content? This may take a while."
+                                        class="btn btn-secondary">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                    </svg>
+                                    Reindex All
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="form-feedback"></div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Meilisearch Status -->
+                <div class="card bg-base-100 shadow-lg">
+                    <div class="card-body">
+                        <h3 class="card-title text-lg">Meilisearch Status</h3>
+                        <div class="space-y-3 mt-4">
+                            <div class="flex items-center gap-3">
+                                <div class="badge badge-success badge-sm">Online</div>
+                                <span class="text-sm text-base-content/70">Ready for search</span>
+                            </div>
+                            <div class="text-sm text-base-content/70">
+                                <p>Index: <code class="text-xs">#(contentType.slug)</code></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Index Statistics -->
+                <div class="card bg-base-100 shadow-lg">
+                    <div class="card-body">
+                        <h3 class="card-title text-lg">Index Stats</h3>
+                        <div class="space-y-2 mt-4 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-base-content/70">Total Documents</span>
+                                <span class="font-medium">Unknown</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-base-content/70">Index Size</span>
+                                <span class="font-medium">Not Available</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-base-content/70">Last Updated</span>
+                                <span class="font-medium">Unknown</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help -->
+                <div class="card bg-base-100 shadow-lg">
+                    <div class="card-body">
+                        <h3 class="card-title text-lg">Help</h3>
+                        <div class="text-sm text-base-content/70 mt-4 space-y-2">
+                            <p><strong>Searchable Fields:</strong> Content from these fields will be searchable.</p>
+                            <p><strong>Filterable Fields:</strong> Users can filter results by these fields.</p>
+                            <p><strong>Sortable Fields:</strong> Results can be sorted by these fields.</p>
+                            <p><strong>Facetable Fields:</strong> Shows count breakdowns for these fields.</p>
+                        </div>
+                        <div class="mt-4">
+                            <a href="https://www.meilisearch.com/docs" target="_blank" class="link link-primary text-sm">
+                                Meilisearch Documentation →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

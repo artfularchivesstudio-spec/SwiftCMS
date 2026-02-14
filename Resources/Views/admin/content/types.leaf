@@ -1,32 +1,176 @@
 #extend("admin/base"):
 #export("content"):
-<div class="flex justify-between items-center mb-6">
-    <h3 class="text-lg font-semibold">Content Types</h3>
-    <a href="/admin/content-types/new" class="btn btn-primary btn-sm">+ New Type</a>
+<div x-data="{ search: '' }" class="space-y-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h3 class="text-lg font-semibold">Content Types</h3>
+            <p class="text-sm text-base-content/60 mt-1">Define and manage your content structures</p>
+        </div>
+
+        <!-- Search and Actions -->
+        <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <div class="relative">
+                <input
+                    x-model="search"
+                    type="text"
+                    placeholder="Search types..."
+                    class="input input-bordered input-sm w-full sm:w-64 pl-10"
+                >
+                <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </div>
+            <a href="/admin/content-types/new" class="btn btn-primary btn-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                New Type
+            </a>
+        </div>
+    </div>
+
+    <!-- Content Types Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        #for(type in contentTypes):
+        <div
+            class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow duration-200"
+            x-show="search === '' || '#(type.displayName)'.toLowerCase().includes(search.toLowerCase()) || '#(type.slug)'.toLowerCase().includes(search.toLowerCase()) || '#(type.description ?? '')'.toLowerCase().includes(search.toLowerCase())"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 transform scale-95"
+            x-transition:enter-end="opacity-100 transform scale-100"
+        >
+            <div class="card-body p-6">
+                <!-- Card Header -->
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <!-- Icon/Avatar -->
+                        <div class="avatar placeholder">
+                            <div class="bg-primary text-primary-content rounded-full w-12 h-12 flex items-center justify-center text-lg font-semibold">
+                                #(type.displayName.prefix(1).uppercased())
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="card-title text-base font-semibold truncate">#(type.displayName)</h3>
+                            <p class="text-sm text-base-content/60 truncate">#(type.slug)</p>
+                        </div>
+                    </div>
+
+                    <!-- Kind Badge -->
+                    #set(kindBadgeClass = "badge badge-sm ")
+                    #if(type.kind == "single"):
+                        #set(kindBadgeClass = kindBadgeClass + "badge-info")
+                    #elseif(type.kind == "collection"):
+                        #set(kindBadgeClass = kindBadgeClass + "badge-success")
+                    #else:
+                        #set(kindBadgeClass = kindBadgeClass + "badge-warning")
+                    #endif
+                    <span class="#(kindBadgeClass)">#(type.kind)</span>
+                </div>
+
+                <!-- Description -->
+                #if(type.description && type.description != ""):
+                <p class="text-sm text-base-content/70 mb-4 line-clamp-2">#(type.description)</p>
+                #endif
+
+                <!-- Field Count -->
+                <div class="flex items-center gap-2 text-sm text-base-content/60 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <span>#(type.fieldCount) #(type.fieldCount == 1 ? "field" : "fields")</span>
+                </div>
+
+                <!-- Actions -->
+                <div class="card-actions justify-end gap-2">
+                    <!-- Edit Type -->
+                    <a
+                        href="/admin/content-types/edit/#(type.id)"
+                        class="btn btn-square btn-ghost btn-xs"
+                        title="Edit Type"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </a>
+
+                    <!-- Create Entry -->
+                    <a
+                        href="/admin/content/#(type.slug)/new"
+                        class="btn btn-primary btn-xs"
+                        title="Create Entry"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        New
+                    </a>
+
+                    <!-- Manage Entries -->
+                    <a
+                        href="/admin/content/#(type.slug)"
+                        class="btn btn-ghost btn-xs"
+                        title="Manage Entries"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                        </svg>
+                        Entries
+                    </a>
+                </div>
+
+                <!-- Duplicate Form (Hidden) -->
+                <form method="POST" action="/admin/content-types/#(type.id)/duplicate" class="inline mt-3">
+                    <button
+                        type="submit"
+                        class="btn btn-ghost btn-xs text-success w-full"
+                        onclick="return confirm('Duplicate this content type? This will create a copy with \"#(type.displayName) Copy\" as the name.')"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Duplicate
+                    </button>
+                </form>
+            </div>
+        </div>
+        #endfor
+    </div>
+
+    <!-- Empty State -->
+    #if(contentTypes.isEmpty):
+    <div class="flex flex-col items-center justify-center py-16 px-6 bg-base-100 rounded-box">
+        <div class="text-center">
+            <!-- Illustration/Icon -->
+            <div class="mx-auto mb-6">
+                <div class="bg-base-300 rounded-full w-24 h-24 flex items-center justify-center mx-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+            </div>
+            <h3 class="text-lg font-medium mb-2">No content types yet</h3>
+            <p class="text-base-content/60 mb-6 max-w-md">
+                Create your first content type to start building structured content. Content types define the blueprint for your entries.
+            </p>
+            <a href="/admin/content-types/new" class="btn btn-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Create Your First Content Type
+            </a>
+        </div>
+    </div>
+    #endif
 </div>
-<div class="bg-base-100 rounded-box shadow-sm p-6">
-    <table class="table">
-        <thead><tr><th>Name</th><th>Slug</th><th>Kind</th><th>Actions</th></tr></thead>
-        <tbody>
-            #for(type in contentTypes):
-            <tr>
-                <td><a href="/admin/content/#(type.slug)" class="link link-primary">#(type.displayName)</a></td>
-                <td><code>#(type.slug)</code></td>
-                <td><span class="badge badge-sm">#(type.kind)</span></td>
-                <td class="flex gap-1">
-                    <a href="/admin/content/#(type.slug)" class="btn btn-ghost btn-xs">Manage</a>
-                    <form method="POST" action="/admin/content-types/#(type.id)/duplicate" class="inline">
-                        <button type="submit"
-                                class="btn btn-ghost btn-xs text-success"
-                                onclick="return confirm('Duplicate this content type?')">
-                            Duplicate
-                        </button>
-                    </form>
-                </td>
-            </tr>
-            #endfor
-        </tbody>
-    </table>
-</div>
+
+<style>
+    .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+</style>
 #endexport
 #endextend

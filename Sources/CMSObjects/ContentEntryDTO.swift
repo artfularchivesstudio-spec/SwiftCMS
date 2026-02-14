@@ -1,11 +1,41 @@
 import Vapor
 
-/// Content entry status following the content lifecycle state machine.
+// MARK: - 📊 Content Status Enum
+
+/// 📊 Content entry status following the content lifecycle state machine.
+///
+/// This enum represents the various states a content entry can be in throughout its lifecycle.
+/// The status determines visibility, editability, and workflow behavior.
+///
+/// 🎯 **States:**
+/// - `.draft`: Initial creation, not visible to the public
+/// - `.review`: Pending approval by content editors
+/// - `.published`: Live and visible to the public
+/// - `.archived`: No longer visible but retains data for recovery
+/// - `.deleted`: Marked for permanent deletion
+///
+/// 📈 **Workflow:**
+///```
+/// draft → review → published → archived
+///    ↓        ↓         ↓           ↓
+///  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+///  (All states can transition to deleted)
+///```
+///
+/// 📊 **Database Mapping:**
+/// - Stored as `varchar(50)` in PostgreSQL
+/// - Used in `content_entries.status` column
+/// - Also used in `content_entry_versions.status` for version tracking
 public enum ContentStatus: String, Codable, Sendable {
+    /// 📝 Initial status, content is being created/revised
     case draft
+    /// 👁️ Content has been submitted for review
     case review
+    /// ✨ Content is live and publicly accessible
     case published
+    /// 📦 Content is no longer public but data is preserved
     case archived
+    /// 🗑️ Content is marked for deletion
     case deleted
 }
 

@@ -1,10 +1,33 @@
 import Fluent
 
-// MARK: - CreateSavedFilter
+// MARK: - CreateSavedFilter Migration
 
+/// 🔄 **CreateSavedFilter Migration**
+/// Creates the `saved_filters` table for storing filter/sort presets
+///
+/// ## 📋 Schema Changes
+/// - Creates table: `saved_filters`
+/// - Fields:
+///   - `id` (UUID, Primary Key)
+///   - `user_id` (UUID, Optional, FK to users)
+///   - `name` (String, Required)
+///   - `content_type` (String, Required)
+///   - `filter_json` (String, Required - JSON string)
+///   - `sort_json` (String, Required - JSON string)
+///   - `is_public` (Bool, Required, Default: false)
+///   - `created_at` (DateTime)
+///   - `updated_at` (DateTime)
+///
+/// ## 🔗 Foreign Keys
+/// - `user_id` → `users.id` (ON DELETE CASCADE, optional)
+///
+/// ## 💾 Preset Management
+/// Store reusable filter/sort configurations for content listings
+/// Public presets available to all users, private presets owned by creators
 public struct CreateSavedFilter: AsyncMigration {
     public init() {}
 
+    /// 🚀 Prepare migration (create table)
     public func prepare(on database: Database) async throws {
         try await database.schema("saved_filters")
             .id()
@@ -19,6 +42,7 @@ public struct CreateSavedFilter: AsyncMigration {
             .create()
     }
 
+    /// 🔄 Revert migration (drop table)
     public func revert(on database: Database) async throws {
         try await database.schema("saved_filters").delete()
     }

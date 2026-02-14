@@ -1,0 +1,173 @@
+#extend("admin/base"):
+#export("content"):
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+    <div>
+        <h3 class="text-lg font-semibold">Webhook Dead Letter Queue</h3>
+        <p class="text-sm text-base-content/60 mt-1">Failed webhook deliveries that require manual intervention</p>
+    </div>
+    <div class="flex gap-2">
+        <button class="btn btn-outline btn-sm"
+                hx-post="/admin/webhooks/dlq/retry-all"
+                hx-confirm="Retry all webhook deliveries?"
+                hx-target="body"
+                hx-push-url="true"
+                #if(count(entries) == 0):
+                disabled
+                #endif>
+            Retry All
+        </button>
+        <a href="/admin/system/dlq" class="btn btn-ghost btn-sm">System DLQ</a>
+    </div>
+</div>
+
+#if(count(entries) > 0):
+<div class="bg-base-100 dark:bg-dark-800 rounded-box shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="table table-zebra w-full">
+            <thead class="bg-base-200 dark:bg-dark-700">
+                <tr>
+                    <th>Event</th>
+                    <th>Webhook URL</th>
+                    <th>Failure Reason</th>
+                    <th>Attempts</th>
+                    <th>Last Failed</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                #for(entry in entries):
+                <tr class="hover:bg-base-200 dark:hover:bg-dark-700 transition-colors" id="dlq-entry-#(entry.id)">
+                    <td>
+                        <div class="font-medium">
+                            #if(let event = entry.payload.dictionaryValue?["event"]?.stringValue):
+                            <span class="badge badge-sm badge-ghost font-mono">#(event)</span>
+                            #else:
+                            <span class="badge badge-sm badge-ghost">Unknown</span>
+                            #endif
+                        </div>
+                        #if(let webhookId = entry.payload.dictionaryValue?["webhookId"]?.stringValue):
+                        <div class="text-xs text-base-content/60 mt-1 font-mono">#(webhookId.prefix(8))</div>
+                        #endif
+                    </td>
+                    <td>
+                        #if(let webhook = entry.payload.dictionaryValue?["data"]?.dictionaryValue?["webhook"]?.dictionaryValue):
+                            <code class="text-xs bg-base-200 dark:bg-dark-700 px-2 py-1 rounded block max-w-xs truncate" title="#(webhook["url"]?.stringValue ?? "")">
+                                #(webhook["url"]?.stringValue ?? "Unknown URL")
+                            </code>
+                        #else:
+                            <span class="text-base-content/50">Unknown URL</span>
+                        #endif
+                    </td>
+                    <td>
+                        <div class="text-xs max-w-xs">
+                            <div class="tooltip tooltip-right" data-tip="#(entry.failureReason)">
+                                <span class="truncate block">#(entry.failureReason)</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <span class="badge badge-sm #if(entry.retryCount >= 5):badge-error#else:badge-warning#end">
+                            #(entry.retryCount)
+                        </span>
+                    </td>
+                    <td class="text-xs">
+                        #if(let lastFailed = entry.lastFailedAt):
+                        #(Date.format(entry.lastFailedAt, style: "relative"))
+                        #else:
+                        --
+                        #endif
+                    </td>
+                    <td>
+                        <div class="flex gap-1 justify-end">
+                            <button class="btn btn-primary btn-xs btn-outline"
+                                    hx-post="/admin/webhooks/dlq/#(entry.id)/retry"
+                                    hx-target="#dlq-entry-#(entry.id)"
+                                    hx-swap="outerHTML"
+                                    title="Retry this delivery">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                            </button>
+                            <button class="btn btn-error btn-xs btn-ghost"
+                                    hx-delete="/admin/webhooks/dlq/#(entry.id)"
+                                    hx-target="#dlq-entry-#(entry.id)"
+                                    hx-swap="outerHTML"
+                                    hx-confirm="Delete this DLQ entry? This cannot be undone."
+                                    title="Delete">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                #endfor
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="mt-6 flex justify-between items-center text-sm text-base-content/60">
+    <div>
+        Showing #(count(entries)) failed webhook deliveries
+    </div>
+    <div class="flex gap-2">
+        <a href="/admin/webhooks" class="link link-primary">Manage Webhooks</a>
+        <span class="mx-2">|</span>
+        <a href="/admin/system/dlqs" class="link link-primary">All DLQs</a>
+    </div>
+</div>
+#else:
+<div class="bg-base-100 dark:bg-dark-800 rounded-box shadow-sm p-12 text-center">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-base-content/30 mb-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <p class="text-base-content/60 font-medium mb-2">No failed webhook deliveries</p>
+    <p class="text-sm text-base-content/40 mb-6">All webhook deliveries have been successful</p>
+    <a href="/admin/webhooks" class="btn btn-primary btn-sm">Manage Webhooks</a>
+</div>
+#endif
+
+<script>
+// Auto-refresh DLQ view every 30 seconds
+setInterval(function() {
+    if (document.visibilityState === 'visible') {
+        htmx.trigger('#dlq-table', 'refresh');
+    }
+}, 30000);
+</script>
+
+<style>
+/* Style for relative time formatting */
+.text-xs {
+    font-size: 0.75rem;
+}
+
+/* Ensure tooltips work properly */
+.tooltip {
+    position: relative;
+}
+
+.tooltip::before {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.25rem 0.5rem;
+    background: hsl(var(--b3));
+    color: hsl(var(--bc));
+    border-radius: 0.25rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 10;
+}
+
+.tooltip:hover::before {
+    opacity: 1;
+}
+</style>
+#endexport
+#endextend

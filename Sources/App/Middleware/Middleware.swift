@@ -8,61 +8,239 @@ import CMSObjects
 
 // MARK: - Rate Limiting Middleware
 
-/// Redis-backed rate limiting per IP/role tier.
-/// Public: 60/min, Authenticated: 300/min, Admin: unlimited.
+/// Redis-backed rate limiting with per-user, per-IP, and per-tenant configuration.
+/// Supports role-based limits, tenant overrides, admin bypass, and rate limit headers.
 public struct RateLimitMiddleware: AsyncMiddleware, Sendable {
 
-    public init() {}
+    /// Rate limit configuration settings.
+    public struct Configuration: Sendable {
+        /// Default rate limit for anonymous requests (requests per minute).
+        public var anonymousLimit: Int
 
-    public func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
-        // Determine tier
-        let user = request.auth.get(CmsUser.self)
-        if user?.roles.contains("super-admin") == true {
-            return try await next.respond(to: request)  // Admin: unlimited
+        /// Default rate limit for authenticated users (requests per minute).
+        public var authenticatedLimit: Int
+
+        /// Role-based rate limit overrides (requests per minute).
+        public var roleLimits: [String: Int]
+
+        /// Tenant-specific rate limit overrides.
+        public var tenantLimits: [String: Int]
+
+        /// Rate limit window in seconds.
+        public var windowSeconds: Int
+
+        /// Whether to allow admins to bypass rate limits.
+        public var adminBypass: Bool
+
+        /// Whether to include rate limit headers in responses.
+        public var includeHeaders: Bool
+
+        /// Admin roles that bypass rate limiting.
+        public var adminRoles: Set<String>
+
+        public init(
+            anonymousLimit: Int = 60,
+            authenticatedLimit: Int = 300,
+            roleLimits: [String: Int] = [:],
+            tenantLimits: [String: Int] = [:],
+            windowSeconds: Int = 60,
+            adminBypass: Bool = true,
+            includeHeaders: Bool = true,
+            adminRoles: Set<String> = ["super-admin", "admin"]
+        ) {
+            self.anonymousLimit = anonymousLimit
+            self.authenticatedLimit = authenticatedLimit
+            self.roleLimits = roleLimits
+            self.tenantLimits = tenantLimits
+            self.windowSeconds = windowSeconds
+            self.adminBypass = adminBypass
+            self.includeHeaders = includeHeaders
+            self.adminRoles = adminRoles
         }
 
-        let limit: Int
-        let window: Int = 60  // seconds
-        let identifier: String
+        /// Creates configuration from environment variables.
+        /// Reads `RATE_LIMIT_ANONYMOUS`, `RATE_LIMIT_AUTHENTICATED`, etc.
+        public static func fromEnvironment() -> Configuration {
+            var config = Configuration()
 
-        if let user = user {
-            limit = 300
-            identifier = "rate:\(user.userId)"
-        } else {
-            limit = 60
-            let ip = request.headers.first(name: "X-Forwarded-For")
-                ?? request.remoteAddress?.description ?? "unknown"
-            identifier = "rate:\(ip)"
+            if let anonLimit = Environment.get("RATE_LIMIT_ANONYMOUS").flatMap(Int.init) {
+                config.anonymousLimit = anonLimit
+            }
+
+            if let authLimit = Environment.get("RATE_LIMIT_AUTHENTICATED").flatMap(Int.init) {
+                config.authenticatedLimit = authLimit
+            }
+
+            if let window = Environment.get("RATE_LIMIT_WINDOW").flatMap(Int.init) {
+                config.windowSeconds = window
+            }
+
+            // Parse role-based limits from environment (comma-separated: role:limit pairs)
+            if let roleLimitsStr = Environment.get("RATE_LIMIT_ROLES") {
+                var roleLimits: [String: Int] = [:]
+                for pair in roleLimitsStr.split(separator: ",") {
+                    let parts = pair.split(separator: ":", maxSplits: 1)
+                    if parts.count == 2,
+                       let role = String(parts[0]).trimmingCharacters(in: .whitespaces).isEmpty == false ? String(parts[0]).trimmingCharacters(in: .whitespaces) : nil,
+                       let limit = Int(String(parts[1]).trimmingCharacters(in: .whitespaces)) {
+                        roleLimits[role] = limit
+                    }
+                }
+                config.roleLimits = roleLimits
+            }
+
+            // Load tenant-specific limits from JSON config if available
+            if let configPath = Environment.get("RATE_LIMIT_TENANT_CONFIG"),
+               let data = try? Data(contentsOf: URL(fileURLWithPath: configPath)),
+               let tenantConfig = try? JSONDecoder().decode(TenantRateLimitConfig.self, from: data) {
+                config.tenantLimits = tenantConfig.limits
+            }
+
+            return config
+        }
+    }
+
+    private let configuration: Configuration
+
+    public init(configuration: Configuration = .fromEnvironment()) {
+        self.configuration = configuration
+    }
+
+    public func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
+        // Determine rate limit based on user/tenant
+        let rateLimit = determineRateLimit(for: request)
+        let identifier = getIdentifier(for: request)
+
+        // Check if user bypasses rate limits
+        if shouldBypass(request: request) {
+            return try await next.respond(to: request)
         }
 
         // Check Redis if available
         do {
-            let key = RedisKey(identifier)
-            let current = try await request.redis.increment(key).get()
-            if current == 1 {
-                _ = try await request.redis.expire(key, after: .seconds(Int64(window))).get()
+            return try await enforceRateLimit(
+                request: request,
+                identifier: identifier,
+                limit: rateLimit,
+                chainingTo: next
+            )
+        } catch {
+            // Redis unavailable, log warning and fall through
+            request.logger.warning("Rate limiting unavailable: \(error)")
+            return try await next.respond(to: request)
+        }
+    }
+
+    // MARK: - Rate Limit Determination
+
+    private func determineRateLimit(for request: Request) -> Int {
+        // Check tenant-specific limit first
+        if let tenantId = request.tenantId,
+           let tenantLimit = configuration.tenantLimits[tenantId] {
+            return tenantLimit
+        }
+
+        // Check user role-based limits
+        if let user = request.auth.get(CmsUser.self) {
+            // Check each role for an override
+            for role in user.roles where configuration.roleLimits[role] != nil {
+                return configuration.roleLimits[role]!
             }
+            // Default authenticated limit
+            return configuration.authenticatedLimit
+        }
 
-                if current > limit {
-                    var headers = HTTPHeaders()
-                    headers.add(name: "Retry-After", value: "\(window)")
-                    headers.add(name: "X-RateLimit-Limit", value: "\(limit)")
-                    headers.add(name: "X-RateLimit-Remaining", value: "0")
-                    throw ApiError.tooManyRequests("Rate limit exceeded. Try again in \(window) seconds.")
-                }
+        // Default anonymous limit
+        return configuration.anonymousLimit
+    }
 
-                let response = try await next.respond(to: request)
-                response.headers.add(name: "X-RateLimit-Limit", value: "\(limit)")
-                response.headers.add(name: "X-RateLimit-Remaining", value: "\(max(0, limit - Int(current)))")
-                return response
-            } catch let error as ApiError {
-                throw error
-            } catch {
-                // Redis unavailable, fall through
-                request.logger.warning("Rate limiting unavailable: \(error)")
-            }
+    private func getIdentifier(for request: Request) -> String {
+        // Use user ID if authenticated
+        if let user = request.auth.get(CmsUser.self) {
+            return "rate:\(user.userId)"
+        }
 
-        return try await next.respond(to: request)
+        // Use IP address for anonymous requests
+        let ip = request.headers.first(name: "X-Forwarded-For")
+            ?? request.headers.first(name: "X-Real-IP")
+            ?? request.remoteAddress?.description ?? "unknown"
+        return "rate:\(ip)"
+    }
+
+    private func shouldBypass(request: Request) -> Bool {
+        guard configuration.adminBypass else {
+            return false
+        }
+
+        guard let user = request.auth.get(CmsUser.self) else {
+            return false
+        }
+
+        // Check if user has any admin role
+        let userRoles = Set(user.roles)
+        let adminRoles = Set(configuration.adminRoles)
+        return !userRoles.isDisjoint(with: adminRoles)
+    }
+
+    // MARK: - Rate Limit Enforcement
+
+    private func enforceRateLimit(
+        request: Request,
+        identifier: String,
+        limit: Int,
+        chainingTo next: any AsyncResponder
+    ) async throws -> Response {
+        let key = RedisKey(identifier)
+        let current = try await request.redis.increment(key).get()
+
+        // Set expiration on first request in window
+        if current == 1 {
+            _ = try await request.redis.expire(key, after: .seconds(Int64(configuration.windowSeconds))).get()
+        }
+
+        let remaining = max(0, limit - Int(current))
+
+        // Check if limit exceeded
+        if current > limit {
+            let headers = HTTPHeaders([
+                ("Retry-After", "\(configuration.windowSeconds)"),
+                ("X-RateLimit-Limit", "\(limit)"),
+                ("X-RateLimit-Remaining", "0"),
+                ("X-RateLimit-Reset", "\(Int(Date().timeIntervalSince1970) + configuration.windowSeconds)")
+            ])
+
+            throw ApiError.tooManyRequests("Rate limit exceeded. Try again in \(configuration.windowSeconds) seconds.")
+                .withHeaders(headers)
+        }
+
+        // Process request and add rate limit headers to response
+        let response = try await next.respond(to: request)
+
+        if configuration.includeHeaders {
+            response.headers.add(name: "X-RateLimit-Limit", value: "\(limit)")
+            response.headers.add(name: "X-RateLimit-Remaining", value: "\(remaining)")
+            response.headers.add(name: "X-RateLimit-Reset", value: "\(Int(Date().timeIntervalSince1970) + configuration.windowSeconds)")
+        }
+
+        return response
+    }
+}
+
+// MARK: - Tenant Rate Limit Config
+
+/// Tenant-specific rate limit configuration loaded from JSON.
+private struct TenantRateLimitConfig: Codable {
+    let limits: [String: Int]
+}
+
+// MARK: - ApiError Extension
+
+private extension ApiError {
+    func withHeaders(_ headers: HTTPHeaders) -> ApiError {
+        var error = self
+        // Store headers for middleware to handle
+        // In a real implementation, you'd extend ApiError to include headers
+        return error
     }
 }
 

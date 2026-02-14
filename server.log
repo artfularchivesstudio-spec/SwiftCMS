@@ -1,0 +1,94 @@
+warning: 'swift-cms': found 1 file(s) which are unhandled; explicitly declare them as resources or exclude from the target
+    /Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSCore/Observability/README.md
+[0/1] Planning build
+Building for debugging...
+[0/3] Write swift-version--58304C5D6DBC2206.txt
+Build of product 'App' complete! (8.52s)
+[ WARNING ] No DATABASE_URL set, using SQLite in-memory (development only)
+[ WARNING ] No REDIS_URL set, sessions in memory (development only)
+[ INFO ] Telemetry configured: console exporter
+[ INFO ] Distributed tracing enabled
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateRoles]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateRoles]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateUsers]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateUsers]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreatePermissions]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreatePermissions]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateFieldPermissions]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateFieldPermissions]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateApiKeys]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateApiKeys]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateMediaFiles]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateMediaFiles]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateWebhooks]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateWebhooks]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateWebhookDeliveries]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateWebhookDeliveries]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateDeadLetterEntries]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateDeadLetterEntries]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateAuditLog]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateAuditLog]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateContentTypeDefinitions]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateContentTypeDefinitions]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateContentEntries]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateContentEntries]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateContentVersions]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateContentVersions]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.CreateSavedFilter]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.CreateSavedFilter]
+[ INFO ] [Migrator] Starting prepare [database-id: sqlite, migration: CMSSchema.SeedDefaultRoles]
+[ INFO ] [Migrator] Finished prepare [database-id: sqlite, migration: CMSSchema.SeedDefaultRoles]
+[ WARNING ] JWT_SECRET not set, using default (NOT FOR PRODUCTION)
+[ INFO ] Auth provider: local
+[ INFO ] Plugin discovery: found 2 plugins
+[ WARNING ]   - seo v1.0.0 - NOT registered (no builder found)
+[ WARNING ]   - analytics v1.0.0 - NOT registered (no builder found)
+[ INFO ] Registering module: search (priority: 50)
+[ INFO ] Booting module: search
+[ WARNING ] Meilisearch not configured (MEILI_URL/MEILI_KEY missing)
+[ INFO ] All 1 modules booted successfully
+[ INFO ] Audit log service configured
+[ INFO ] WebSocket server configured at /ws
+[ INFO ] Plugin discovery: found 2 plugins
+[ WARNING ]   - seo v1.0.0 - NOT registered (no builder found)
+[ WARNING ]   - analytics v1.0.0 - NOT registered (no builder found)
+[ INFO ] Routes registered
+[ INFO ] SwiftCMS configured successfully
+[ INFO ] Multi-tenancy mode: disabled (single-tenant)
+[ INFO ] SwiftCMS server started [environment: development, multi-tenant: false]
+[ NOTICE ] Server started on http://127.0.0.1:8080
+[ INFO ] GET /healthz [request-id: BC21E0BA-8EB6-4630-8524-C0031C85EEA7]
+[ INFO ] Request completed [duration-ms: 1, method: GET, path: /healthz, request-id: 89796DCB-4995-469F-85DD-DECF6292424E, status: 200]
+[ INFO ] [Span] GET /healthz (C48B4723)
+Trace: DBB6D397
+Duration: 1.05ms
+Status: ok
+Attributes: ["http.method": CMSObjects.AnyCodableValue.string("GET"), "http.url": CMSObjects.AnyCodableValue.string("/healthz"), "http.status_code": CMSObjects.AnyCodableValue.int(200), "http.user_agent": CMSObjects.AnyCodableValue.string("curl/8.7.1"), "http.scheme": CMSObjects.AnyCodableValue.string("http"), "http.host": CMSObjects.AnyCodableValue.string("unknown"), "net.peer.ip": CMSObjects.AnyCodableValue.string("[IPv4]127.0.0.1/127.0.0.1:55014"), "http.response_time_ms": CMSObjects.AnyCodableValue.double(0.3600120544433594), "http.target": CMSObjects.AnyCodableValue.string("/healthz")]
+[ INFO ] GET /ready [request-id: 2E00813E-6F19-40A6-957B-ECFF79DB66EC]
+[ INFO ] Request completed [duration-ms: 3, method: GET, path: /ready, request-id: 1E7C42C2-C695-4704-8C4F-FF313509A764, status: 503]
+[ INFO ] [Span] GET /ready (632E31E9)
+Trace: AEA41AFB
+Duration: 2.99ms
+Status: error(description: "HTTP 503")
+Attributes: ["http.url": CMSObjects.AnyCodableValue.string("/ready"), "http.user_agent": CMSObjects.AnyCodableValue.string("curl/8.7.1"), "http.method": CMSObjects.AnyCodableValue.string("GET"), "http.scheme": CMSObjects.AnyCodableValue.string("http"), "http.target": CMSObjects.AnyCodableValue.string("/ready"), "net.peer.ip": CMSObjects.AnyCodableValue.string("[IPv4]127.0.0.1/127.0.0.1:55028"), "http.response_time_ms": CMSObjects.AnyCodableValue.double(2.9098987579345703), "http.status_code": CMSObjects.AnyCodableValue.int(503), "http.host": CMSObjects.AnyCodableValue.string("unknown")]
+[ INFO ] GET /healthz [request-id: AEAF267B-0BEC-486F-A935-13653867535F]
+[ INFO ] Request completed [duration-ms: 0, method: GET, path: /healthz, request-id: 8616ACFF-021C-46F9-B7C7-566F3485CA94, status: 200]
+[ INFO ] [Span] GET /healthz (AF1E4C58)
+Trace: 70F3F7A1
+Duration: 0.30ms
+Status: ok
+Attributes: ["http.url": CMSObjects.AnyCodableValue.string("/healthz"), "http.user_agent": CMSObjects.AnyCodableValue.string("curl/8.7.1"), "http.method": CMSObjects.AnyCodableValue.string("GET"), "http.scheme": CMSObjects.AnyCodableValue.string("http"), "http.target": CMSObjects.AnyCodableValue.string("/healthz"), "net.peer.ip": CMSObjects.AnyCodableValue.string("[IPv4]127.0.0.1/127.0.0.1:55076"), "http.response_time_ms": CMSObjects.AnyCodableValue.double(0.23293495178222656), "http.status_code": CMSObjects.AnyCodableValue.int(200), "http.host": CMSObjects.AnyCodableValue.string("unknown")]
+[ INFO ] GET /healthz [request-id: 4763B418-01AC-4BF7-99E6-0E842822260C]
+[ INFO ] Request completed [duration-ms: 3, method: GET, path: /healthz, request-id: A8697984-4E6D-416B-B290-BB6FC520D719, status: 200]
+[ INFO ] GET /ready [request-id: 5A6C5ACB-A56E-46F8-899C-C44686939DF9]
+[ INFO ] Request completed [duration-ms: 17, method: GET, path: /ready, request-id: 2757D82D-2EF6-4264-BE5D-1B05715C02D4, status: 503]
+[ INFO ] [Span] GET /healthz (F3D0A654)
+Trace: B63F39D5
+Duration: 2.46ms
+Status: ok
+Attributes: ["http.method": CMSObjects.AnyCodableValue.string("GET"), "http.url": CMSObjects.AnyCodableValue.string("/healthz"), "http.status_code": CMSObjects.AnyCodableValue.int(200), "http.host": CMSObjects.AnyCodableValue.string("unknown"), "http.user_agent": CMSObjects.AnyCodableValue.string("curl/8.7.1"), "http.scheme": CMSObjects.AnyCodableValue.string("http"), "net.peer.ip": CMSObjects.AnyCodableValue.string("[IPv4]127.0.0.1/127.0.0.1:56948"), "http.response_time_ms": CMSObjects.AnyCodableValue.double(1.0859966278076172), "http.target": CMSObjects.AnyCodableValue.string("/healthz")]
+[ INFO ] [Span] GET /ready (2CBC31FA)
+Trace: BE23C708
+Duration: 17.45ms
+Status: error(description: "HTTP 503")
+Attributes: ["http.url": CMSObjects.AnyCodableValue.string("/ready"), "http.user_agent": CMSObjects.AnyCodableValue.string("curl/8.7.1"), "http.method": CMSObjects.AnyCodableValue.string("GET"), "http.scheme": CMSObjects.AnyCodableValue.string("http"), "http.target": CMSObjects.AnyCodableValue.string("/ready"), "net.peer.ip": CMSObjects.AnyCodableValue.string("[IPv4]127.0.0.1/127.0.0.1:56953"), "http.response_time_ms": CMSObjects.AnyCodableValue.double(17.361998558044434), "http.status_code": CMSObjects.AnyCodableValue.int(503), "http.host": CMSObjects.AnyCodableValue.string("unknown")]

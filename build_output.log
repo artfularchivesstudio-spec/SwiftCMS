@@ -1,0 +1,575 @@
+[1/1] Compiling plugin GenerateManual
+[2/2] Compiling plugin GenerateDoccReference
+Building for debugging...
+[2/9] Write swift-version--58304C5D6DBC2206.txt
+error: emit-module command failed with exit code 1 (use -v to see invocation)
+[4/10] Emitting module CMSMedia
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:4:14: error: class 'NSBitmapImageRep' does not exist in module 'Foundation'
+  2 | import class Foundation.NSImage
+  3 | import class Foundation.NSData
+  4 | import class Foundation.NSBitmapImageRep
+    |              `- error: class 'NSBitmapImageRep' does not exist in module 'Foundation'
+  5 | import struct Foundation.CGSize
+  6 | import struct Foundation.CGFloat
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:32:31: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 30 |     public init() {}
+ 31 | 
+ 32 |     typealias PlatformImage = NSImage
+    |                               `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 33 | 
+ 34 |     /// Generates a thumbnail for the given image data.
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:40:82: error: cannot find type 'ThumbnailSize' in scope
+ 38 |     ///   - size: The desired thumbnail size
+ 39 |     /// - Returns: Resized image data
+ 40 |     public func generateThumbnail(from data: ByteBuffer, mimeType: String, size: ThumbnailSize) async throws -> ByteBuffer {
+    |                                                                                  `- error: cannot find type 'ThumbnailSize' in scope
+ 41 |         guard let image = try await loadImage(from: data, mimeType: mimeType) else {
+ 42 |             throw ImageProcessingError.invalidImageData
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:59:85: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 57 |     }
+ 58 | 
+ 59 |     private func loadImage(from data: ByteBuffer, mimeType: String) async throws -> NSImage? {
+    |                                                                                     `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 60 |         guard let bytes = data.getBytes(at: 0, length: data.readableBytes) else {
+ 61 |             throw ImageProcessingError.invalidImageData
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:68:40: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 66 |     }
+ 67 | 
+ 68 |     private func cropToSquare(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+    |                                        `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 69 |         guard let bitmapRep = NSBitmapImageRep(
+ 70 |             bitmapDataPlanes: nil,
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:68:104: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 66 |     }
+ 67 | 
+ 68 |     private func cropToSquare(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+    |                                                                                                        `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 69 |         guard let bitmapRep = NSBitmapImageRep(
+ 70 |             bitmapDataPlanes: nil,
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:112:55: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+110 |     }
+111 | 
+112 |     private func resizePreservingAspectRatio(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+    |                                                       `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+113 |         let originalSize = image.size
+114 |         let widthRatio = CGFloat(targetSize.width) / originalSize.width
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:112:119: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+110 |     }
+111 | 
+112 |     private func resizePreservingAspectRatio(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+    |                                                                                                                       `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+113 |         let originalSize = image.size
+114 |         let widthRatio = CGFloat(targetSize.width) / originalSize.width
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:154:39: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+152 |     }
+153 | 
+154 |     private func exportImage(_ image: NSImage, mimeType: String) async throws -> ByteBuffer {
+    |                                       `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+155 |         guard let tiffData = image.tiffRepresentation,
+156 |               let bitmapRep = NSBitmapImageRep(data: tiffData) else {
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:198:11: error: cannot find type 'ThumbnailSize' in scope
+196 | // MARK: - Thumbnail Size Extensions
+197 | 
+198 | extension ThumbnailSize {
+    |           `- error: cannot find type 'ThumbnailSize' in scope
+199 |     /// The name of this thumbnail size for use in URLs and storage keys.
+200 |     public var storageKey: String {
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:214:11: error: cannot find type 'ThumbnailSize' in scope
+212 | // MARK: - Thumbnail Size Extensions
+213 | 
+214 | extension ThumbnailSize {
+    |           `- error: cannot find type 'ThumbnailSize' in scope
+215 |     /// The name of this thumbnail size for use in URLs and storage keys.
+216 |     public var storageKey: String {
+[5/10] Compiling CMSMedia ImageProcessor.swift
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:4:14: error: class 'NSBitmapImageRep' does not exist in module 'Foundation'
+  2 | import class Foundation.NSImage
+  3 | import class Foundation.NSData
+  4 | import class Foundation.NSBitmapImageRep
+    |              `- error: class 'NSBitmapImageRep' does not exist in module 'Foundation'
+  5 | import struct Foundation.CGSize
+  6 | import struct Foundation.CGFloat
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:32:31: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 30 |     public init() {}
+ 31 | 
+ 32 |     typealias PlatformImage = NSImage
+    |                               `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 33 | 
+ 34 |     /// Generates a thumbnail for the given image data.
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:40:82: error: cannot find type 'ThumbnailSize' in scope
+ 38 |     ///   - size: The desired thumbnail size
+ 39 |     /// - Returns: Resized image data
+ 40 |     public func generateThumbnail(from data: ByteBuffer, mimeType: String, size: ThumbnailSize) async throws -> ByteBuffer {
+    |                                                                                  `- error: cannot find type 'ThumbnailSize' in scope
+ 41 |         guard let image = try await loadImage(from: data, mimeType: mimeType) else {
+ 42 |             throw ImageProcessingError.invalidImageData
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:59:85: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 57 |     }
+ 58 | 
+ 59 |     private func loadImage(from data: ByteBuffer, mimeType: String) async throws -> NSImage? {
+    |                                                                                     `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 60 |         guard let bytes = data.getBytes(at: 0, length: data.readableBytes) else {
+ 61 |             throw ImageProcessingError.invalidImageData
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:68:40: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 66 |     }
+ 67 | 
+ 68 |     private func cropToSquare(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+    |                                        `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 69 |         guard let bitmapRep = NSBitmapImageRep(
+ 70 |             bitmapDataPlanes: nil,
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:68:104: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 66 |     }
+ 67 | 
+ 68 |     private func cropToSquare(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+    |                                                                                                        `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+ 69 |         guard let bitmapRep = NSBitmapImageRep(
+ 70 |             bitmapDataPlanes: nil,
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:112:55: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+110 |     }
+111 | 
+112 |     private func resizePreservingAspectRatio(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+    |                                                       `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+113 |         let originalSize = image.size
+114 |         let widthRatio = CGFloat(targetSize.width) / originalSize.width
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:112:119: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+110 |     }
+111 | 
+112 |     private func resizePreservingAspectRatio(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+    |                                                                                                                       `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+113 |         let originalSize = image.size
+114 |         let widthRatio = CGFloat(targetSize.width) / originalSize.width
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:154:39: error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+152 |     }
+153 | 
+154 |     private func exportImage(_ image: NSImage, mimeType: String) async throws -> ByteBuffer {
+    |                                       `- error: 'NSImage' is unavailable: This Objective-C class has only been forward-declared; import its owning module to use it
+155 |         guard let tiffData = image.tiffRepresentation,
+156 |               let bitmapRep = NSBitmapImageRep(data: tiffData) else {
+
+Foundation.NSImage:2:14: note: 'NSImage' has been explicitly marked unavailable here
+1 | @available(*, unavailable, message: "This Objective-C class has only been forward-declared; import its owning module to use it")
+2 | public class NSImage {
+  |              `- note: 'NSImage' has been explicitly marked unavailable here
+3 | }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:198:11: error: cannot find type 'ThumbnailSize' in scope
+196 | // MARK: - Thumbnail Size Extensions
+197 | 
+198 | extension ThumbnailSize {
+    |           `- error: cannot find type 'ThumbnailSize' in scope
+199 |     /// The name of this thumbnail size for use in URLs and storage keys.
+200 |     public var storageKey: String {
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:214:11: error: cannot find type 'ThumbnailSize' in scope
+212 | // MARK: - Thumbnail Size Extensions
+213 | 
+214 | extension ThumbnailSize {
+    |           `- error: cannot find type 'ThumbnailSize' in scope
+215 |     /// The name of this thumbnail size for use in URLs and storage keys.
+216 |     public var storageKey: String {
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:65:16: error: 'NSImage' cannot be constructed because it has no accessible initializers
+ 63 | 
+ 64 |         let nsData = NSData(bytes: bytes, length: bytes.count)
+ 65 |         return NSImage(data: nsData as Data)
+    |                `- error: 'NSImage' cannot be constructed because it has no accessible initializers
+ 66 |     }
+ 67 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:69:31: error: cannot find 'NSBitmapImageRep' in scope
+ 67 | 
+ 68 |     private func cropToSquare(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+ 69 |         guard let bitmapRep = NSBitmapImageRep(
+    |                               `- error: cannot find 'NSBitmapImageRep' in scope
+ 70 |             bitmapDataPlanes: nil,
+ 71 |             pixelsWide: targetSize.width,
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:70:31: error: 'nil' requires a contextual type
+ 68 |     private func cropToSquare(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+ 69 |         guard let bitmapRep = NSBitmapImageRep(
+ 70 |             bitmapDataPlanes: nil,
+    |                               `- error: 'nil' requires a contextual type
+ 71 |             pixelsWide: targetSize.width,
+ 72 |             pixelsHigh: targetSize.height,
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:77:30: error: cannot infer contextual base in reference to member 'deviceRGB'
+ 75 |             hasAlpha: true,
+ 76 |             isPlanar: false,
+ 77 |             colorSpaceName: .deviceRGB,
+    |                              `- error: cannot infer contextual base in reference to member 'deviceRGB'
+ 78 |             bytesPerRow: 0,
+ 79 |             bitsPerPixel: 0
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:84:57: error: cannot convert value of type 'Int' to expected argument type 'Double'
+ 82 |         }
+ 83 | 
+ 84 |         let targetSizeNSSize = NSSize(width: targetSize.width, height: targetSize.height)
+    |                                                         `- error: cannot convert value of type 'Int' to expected argument type 'Double'
+ 85 |         let originalSize = image.size
+ 86 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:84:83: error: cannot convert value of type 'Int' to expected argument type 'Double'
+ 82 |         }
+ 83 | 
+ 84 |         let targetSizeNSSize = NSSize(width: targetSize.width, height: targetSize.height)
+    |                                                                                   `- error: cannot convert value of type 'Int' to expected argument type 'Double'
+ 85 |         let originalSize = image.size
+ 86 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:85:34: error: value of type 'NSImage' has no member 'size'
+ 83 | 
+ 84 |         let targetSizeNSSize = NSSize(width: targetSize.width, height: targetSize.height)
+ 85 |         let originalSize = image.size
+    |                                  `- error: value of type 'NSImage' has no member 'size'
+ 86 | 
+ 87 |         // Calculate crop rect to get square from center
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSUserNotification.h:8:1: note: class 'NSImage' will be imported as an opaque placeholder class and may be missing members; import the definition to access the complete interface
+  6 | #import <Foundation/NSObject.h>
+  7 | 
+  8 | @class NSString, NSDictionary<KeyType, ObjectType>, NSArray<ObjectType>, NSDateComponents, NSDate, NSTimeZone, NSImage, NSAttributedString, NSUserNotificationAction;
+    | |- note: class 'NSImage' will be imported as an opaque placeholder class and may be missing members; import the definition to access the complete interface
+    | `- note: interface 'NSImage' forward declared here
+  9 | @protocol NSUserNotificationCenterDelegate;
+ 10 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:89:30: error: argument passed to call that takes no arguments
+ 87 |         // Calculate crop rect to get square from center
+ 88 |         let cropSize = min(originalSize.width, originalSize.height)
+ 89 |         let cropRect = CGRect(
+    |                              `- error: argument passed to call that takes no arguments
+ 90 |             x: (originalSize.width - cropSize) / 2,
+ 91 |             y: (originalSize.height - cropSize) / 2,
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:96:9: error: cannot find 'NSGraphicsContext' in scope
+ 94 |         )
+ 95 | 
+ 96 |         NSGraphicsContext.saveGraphicsState()
+    |         `- error: cannot find 'NSGraphicsContext' in scope
+ 97 |         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmapRep)
+ 98 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:97:9: error: cannot find 'NSGraphicsContext' in scope
+ 95 | 
+ 96 |         NSGraphicsContext.saveGraphicsState()
+ 97 |         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmapRep)
+    |         `- error: cannot find 'NSGraphicsContext' in scope
+ 98 | 
+ 99 |         // Draw cropped and scaled image
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:97:37: error: cannot find 'NSGraphicsContext' in scope
+ 95 | 
+ 96 |         NSGraphicsContext.saveGraphicsState()
+ 97 |         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmapRep)
+    |                                     `- error: cannot find 'NSGraphicsContext' in scope
+ 98 | 
+ 99 |         // Draw cropped and scaled image
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:100:15: error: value of type 'NSImage' has no member 'draw'
+ 98 | 
+ 99 |         // Draw cropped and scaled image
+100 |         image.draw(in: CGRect(x: 0, y: 0, width: targetSize.width, height: targetSize.height),
+    |               `- error: value of type 'NSImage' has no member 'draw'
+101 |                   from: cropRect,
+102 |                   operation: .copy,
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSUserNotification.h:8:1: note: class 'NSImage' will be imported as an opaque placeholder class and may be missing members; import the definition to access the complete interface
+  6 | #import <Foundation/NSObject.h>
+  7 | 
+  8 | @class NSString, NSDictionary<KeyType, ObjectType>, NSArray<ObjectType>, NSDateComponents, NSDate, NSTimeZone, NSImage, NSAttributedString, NSUserNotificationAction;
+    | |- note: class 'NSImage' will be imported as an opaque placeholder class and may be missing members; import the definition to access the complete interface
+    | `- note: interface 'NSImage' forward declared here
+  9 | @protocol NSUserNotificationCenterDelegate;
+ 10 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:100:30: error: argument passed to call that takes no arguments
+ 98 | 
+ 99 |         // Draw cropped and scaled image
+100 |         image.draw(in: CGRect(x: 0, y: 0, width: targetSize.width, height: targetSize.height),
+    |                              `- error: argument passed to call that takes no arguments
+101 |                   from: cropRect,
+102 |                   operation: .copy,
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:102:31: error: cannot infer contextual base in reference to member 'copy'
+100 |         image.draw(in: CGRect(x: 0, y: 0, width: targetSize.width, height: targetSize.height),
+101 |                   from: cropRect,
+102 |                   operation: .copy,
+    |                               `- error: cannot infer contextual base in reference to member 'copy'
+103 |                   fraction: 1.0)
+104 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:105:9: error: cannot find 'NSGraphicsContext' in scope
+103 |                   fraction: 1.0)
+104 | 
+105 |         NSGraphicsContext.restoreGraphicsState()
+    |         `- error: cannot find 'NSGraphicsContext' in scope
+106 | 
+107 |         let resizedImage = NSImage(size: targetSizeNSSize)
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:107:28: error: 'NSImage' cannot be constructed because it has no accessible initializers
+105 |         NSGraphicsContext.restoreGraphicsState()
+106 | 
+107 |         let resizedImage = NSImage(size: targetSizeNSSize)
+    |                            `- error: 'NSImage' cannot be constructed because it has no accessible initializers
+108 |         resizedImage.addRepresentation(bitmapRep)
+109 |         return resizedImage
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:113:34: error: value of type 'NSImage' has no member 'size'
+111 | 
+112 |     private func resizePreservingAspectRatio(_ image: NSImage, targetSize: (width: Int, height: Int)) async throws -> NSImage {
+113 |         let originalSize = image.size
+    |                                  `- error: value of type 'NSImage' has no member 'size'
+114 |         let widthRatio = CGFloat(targetSize.width) / originalSize.width
+115 |         let heightRatio = CGFloat(targetSize.height) / originalSize.height
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSUserNotification.h:8:1: note: class 'NSImage' will be imported as an opaque placeholder class and may be missing members; import the definition to access the complete interface
+  6 | #import <Foundation/NSObject.h>
+  7 | 
+  8 | @class NSString, NSDictionary<KeyType, ObjectType>, NSArray<ObjectType>, NSDateComponents, NSDate, NSTimeZone, NSImage, NSAttributedString, NSUserNotificationAction;
+    | |- note: class 'NSImage' will be imported as an opaque placeholder class and may be missing members; import the definition to access the complete interface
+    | `- note: interface 'NSImage' forward declared here
+  9 | @protocol NSUserNotificationCenterDelegate;
+ 10 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:123:31: error: cannot find 'NSBitmapImageRep' in scope
+121 |         )
+122 | 
+123 |         guard let bitmapRep = NSBitmapImageRep(
+    |                               `- error: cannot find 'NSBitmapImageRep' in scope
+124 |             bitmapDataPlanes: nil,
+125 |             pixelsWide: Int(newSize.width),
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:124:31: error: 'nil' requires a contextual type
+122 | 
+123 |         guard let bitmapRep = NSBitmapImageRep(
+124 |             bitmapDataPlanes: nil,
+    |                               `- error: 'nil' requires a contextual type
+125 |             pixelsWide: Int(newSize.width),
+126 |             pixelsHigh: Int(newSize.height),
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:131:30: error: cannot infer contextual base in reference to member 'deviceRGB'
+129 |             hasAlpha: true,
+130 |             isPlanar: false,
+131 |             colorSpaceName: .deviceRGB,
+    |                              `- error: cannot infer contextual base in reference to member 'deviceRGB'
+132 |             bytesPerRow: 0,
+133 |             bitsPerPixel: 0
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:138:9: error: cannot find 'NSGraphicsContext' in scope
+136 |         }
+137 | 
+138 |         NSGraphicsContext.saveGraphicsState()
+    |         `- error: cannot find 'NSGraphicsContext' in scope
+139 |         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmapRep)
+140 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:139:9: error: cannot find 'NSGraphicsContext' in scope
+137 | 
+138 |         NSGraphicsContext.saveGraphicsState()
+139 |         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmapRep)
+    |         `- error: cannot find 'NSGraphicsContext' in scope
+140 | 
+141 |         // Draw resized image with high quality
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:139:37: error: cannot find 'NSGraphicsContext' in scope
+137 | 
+138 |         NSGraphicsContext.saveGraphicsState()
+139 |         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmapRep)
+    |                                     `- error: cannot find 'NSGraphicsContext' in scope
+140 | 
+141 |         // Draw resized image with high quality
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:142:15: error: value of type 'NSImage' has no member 'draw'
+140 | 
+141 |         // Draw resized image with high quality
+142 |         image.draw(in: CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height),
+    |               `- error: value of type 'NSImage' has no member 'draw'
+143 |                   from: CGRect(x: 0, y: 0, width: originalSize.width, height: originalSize.height),
+144 |                   operation: .copy,
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSUserNotification.h:8:1: note: class 'NSImage' will be imported as an opaque placeholder class and may be missing members; import the definition to access the complete interface
+  6 | #import <Foundation/NSObject.h>
+  7 | 
+  8 | @class NSString, NSDictionary<KeyType, ObjectType>, NSArray<ObjectType>, NSDateComponents, NSDate, NSTimeZone, NSImage, NSAttributedString, NSUserNotificationAction;
+    | |- note: class 'NSImage' will be imported as an opaque placeholder class and may be missing members; import the definition to access the complete interface
+    | `- note: interface 'NSImage' forward declared here
+  9 | @protocol NSUserNotificationCenterDelegate;
+ 10 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:142:30: error: argument passed to call that takes no arguments
+140 | 
+141 |         // Draw resized image with high quality
+142 |         image.draw(in: CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height),
+    |                              `- error: argument passed to call that takes no arguments
+143 |                   from: CGRect(x: 0, y: 0, width: originalSize.width, height: originalSize.height),
+144 |                   operation: .copy,
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:143:31: error: argument passed to call that takes no arguments
+141 |         // Draw resized image with high quality
+142 |         image.draw(in: CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height),
+143 |                   from: CGRect(x: 0, y: 0, width: originalSize.width, height: originalSize.height),
+    |                               `- error: argument passed to call that takes no arguments
+144 |                   operation: .copy,
+145 |                   fraction: 1.0)
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:144:31: error: cannot infer contextual base in reference to member 'copy'
+142 |         image.draw(in: CGRect(x: 0, y: 0, width: newSize.width, height: newSize.height),
+143 |                   from: CGRect(x: 0, y: 0, width: originalSize.width, height: originalSize.height),
+144 |                   operation: .copy,
+    |                               `- error: cannot infer contextual base in reference to member 'copy'
+145 |                   fraction: 1.0)
+146 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:147:9: error: cannot find 'NSGraphicsContext' in scope
+145 |                   fraction: 1.0)
+146 | 
+147 |         NSGraphicsContext.restoreGraphicsState()
+    |         `- error: cannot find 'NSGraphicsContext' in scope
+148 | 
+149 |         let resizedImage = NSImage(size: newSize)
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:149:28: error: 'NSImage' cannot be constructed because it has no accessible initializers
+147 |         NSGraphicsContext.restoreGraphicsState()
+148 | 
+149 |         let resizedImage = NSImage(size: newSize)
+    |                            `- error: 'NSImage' cannot be constructed because it has no accessible initializers
+150 |         resizedImage.addRepresentation(bitmapRep)
+151 |         return resizedImage
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:155:36: error: value of type 'NSImage' has no member 'tiffRepresentation'
+153 | 
+154 |     private func exportImage(_ image: NSImage, mimeType: String) async throws -> ByteBuffer {
+155 |         guard let tiffData = image.tiffRepresentation,
+    |                                    `- error: value of type 'NSImage' has no member 'tiffRepresentation'
+156 |               let bitmapRep = NSBitmapImageRep(data: tiffData) else {
+157 |             throw ImageProcessingError.exportFailed
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.1.sdk/System/Library/Frameworks/Foundation.framework/Headers/NSUserNotification.h:8:1: note: class 'NSImage' will be imported as an opaque placeholder class and may be missing members; import the definition to access the complete interface
+  6 | #import <Foundation/NSObject.h>
+  7 | 
+  8 | @class NSString, NSDictionary<KeyType, ObjectType>, NSArray<ObjectType>, NSDateComponents, NSDate, NSTimeZone, NSImage, NSAttributedString, NSUserNotificationAction;
+    | |- note: class 'NSImage' will be imported as an opaque placeholder class and may be missing members; import the definition to access the complete interface
+    | `- note: interface 'NSImage' forward declared here
+  9 | @protocol NSUserNotificationCenterDelegate;
+ 10 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:156:31: error: cannot find 'NSBitmapImageRep' in scope
+154 |     private func exportImage(_ image: NSImage, mimeType: String) async throws -> ByteBuffer {
+155 |         guard let tiffData = image.tiffRepresentation,
+156 |               let bitmapRep = NSBitmapImageRep(data: tiffData) else {
+    |                               `- error: cannot find 'NSBitmapImageRep' in scope
+157 |             throw ImageProcessingError.exportFailed
+158 |         }
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:160:23: error: cannot find type 'NSBitmapImageRep' in scope
+158 |         }
+159 | 
+160 |         let fileType: NSBitmapImageRep.FileType
+    |                       `- error: cannot find type 'NSBitmapImageRep' in scope
+161 |         let properties: [NSBitmapImageRep.PropertyKey: Any] = [:]
+162 | 
+
+/Users/gurindersingh/Documents/Developer/Swift-CMS/Sources/CMSMedia/ImageProcessor.swift:161:26: error: cannot find type 'NSBitmapImageRep' in scope
+159 | 
+160 |         let fileType: NSBitmapImageRep.FileType
+161 |         let properties: [NSBitmapImageRep.PropertyKey: Any] = [:]
+    |                          `- error: cannot find type 'NSBitmapImageRep' in scope
+162 | 
+163 |         switch mimeType.lowercased() {
+[5/10] Linking cms

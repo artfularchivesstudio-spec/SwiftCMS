@@ -3,16 +3,61 @@ import CMSObjects
 import Fluent
 import Foundation
 
-/// Middleware that automatically creates and manages spans for HTTP requests.
+/// 🌐 **Distributed Tracing Middleware**
+///
+/// Vapor middleware that automatically creates and manages spans for all HTTP requests.
+/// Instruments incoming requests, database operations, and external calls.
+/// Integrates with TelemetryManager for comprehensive observability.
+///
+/// ## Features
+/// - Automatic span creation for each HTTP request
+/// - W3C and Jaeger context propagation from incoming headers
+/// - Standard HTTP attribute collection (method, URL, status, etc.)
+/// - Automatic metric recording (requests, errors, durations)
+/// - Child spans for nested operations (database, cache, external calls)
+///
+/// ## Usage
+/// ```swift
+/// // Register in configure.swift
+/// let telemetry = TelemetryManager(...)
+/// app.telemetry = telemetry
+/// app.middleware.use(TracingMiddleware(telemetry: telemetry))
+///```
+///
+/// ## HTTP Attributes Collected
+/// - `http.method`: GET, POST, PUT, DELETE, etc.
+/// - `http.url`: Full request URL
+/// - `http.scheme`: http or https
+/// - `http.host`: Hostname
+/// - `http.target`: Request path
+/// - `http.user_agent`: Client user agent
+/// - `net.peer.ip`: Client IP address
+/// - `cms.tenant_id`: Multi-tenant identifier
+/// - `http.status_code`: Response status code
 public struct TracingMiddleware: AsyncMiddleware, Sendable {
-    /// The telemetry manager.
+    /// The telemetry manager for span and metric operations
     private let telemetry: TelemetryManager
 
-    /// Create a new tracing middleware.
+    /// 🧰 **Initialize Tracing Middleware**
+    ///
+    /// Creates a new tracing middleware instance.
+    ///
+    /// - Parameter telemetry: TelemetryManager instance for span creation
     public init(telemetry: TelemetryManager) {
         self.telemetry = telemetry
     }
 
+    /// 🌐 **Middleware Response Handler**
+    ///
+    /// Intercepts each HTTP request, creates a server span, and instruments the full lifecycle.
+    /// Extracts trace context from headers, collects attributes, records metrics,
+    /// and propagates context to response headers.
+    ///
+    /// - Parameters:
+    ///   - request: Incoming HTTP request
+    ///   - next: Next responder in middleware chain
+    /// - Returns: HTTP response with tracing headers
+    /// - Throws: Any errors from the request handler
     public func respond(to request: Request, chainingTo next: any AsyncResponder) async throws -> Response {
         // Extract parent context from incoming headers
         let parentContext = await telemetry.extractContext(from: request.headers)
@@ -138,17 +183,46 @@ public struct TracingMiddleware: AsyncMiddleware, Sendable {
     }
 }
 
-/// Tracing helper for creating child spans within request handlers.
+/// 🔍 **Operation Tracer Helper**
+///
+/// Simplified interface for creating child spans within request handlers.
+/// Provides convenient methods for tracing operations without direct telemetry access.
+///
+/// ## Usage
+/// ```swift
+/// let tracer = Tracer(request: req)
+///
+/// // Create child span
+/// let span = await tracer.span("process-payment", kind: .internal)
+///
+/// // Trace operation with automatic timing
+/// let result = try await tracer.trace("fetch-user") { span in
+///     return try await fetchUser()
+/// }
+///```
 public struct Tracer: Sendable {
-    /// The request being traced.
+    /// The request being traced
     private let request: Request
 
-    /// Create a tracer for the given request.
+    /// 🧰 **Initialize Tracer**
+    ///
+    /// Creates a tracer for the given request.
+    /// Ensures child spans inherit parent's trace context.
+    ///
+    /// - Parameter request: The request context
     public init(request: Request) {
         self.request = request
     }
 
-    /// Create a child span for an operation.
+    /// ➕ **Create Child Span**
+    ///
+    /// Creates a child span for an operation within the current request.
+    /// Inherits trace context from the request's current span.
+    ///
+    /// - Parameters:
+    ///   - name: Span name
+    ///   - kind: Span kind (default: .internal)
+    /// - Returns: New child span or nil if telemetry unavailable
     public func span(_ name: String, kind: SpanKind = .internal) async -> TelemetrySpan? {
         guard let telemetry = request.application.telemetry else {
             return nil
@@ -164,7 +238,17 @@ public struct Tracer: Sendable {
         return span
     }
 
-    /// Execute a block with tracing.
+    /// 🔄 **Trace Operation**
+    ///
+    /// Executes a block with automatic span lifecycle management.
+    /// Creates span, records timing, handles errors, and ends span automatically.
+    ///
+    /// - Parameters:
+    ///   - name: Span name
+    ///   - kind: Span kind (default: .internal)
+    ///   - operation: Async closure to trace with optional span access
+    /// - Returns: Result from the operation
+    /// - Throws: Any errors from the operation
     public func trace<T>(_ name: String, kind: SpanKind = .internal, operation: @Sendable (TelemetrySpan?) async throws -> T) async throws -> T {
         let span = await span(name, kind: kind)
 
@@ -192,16 +276,29 @@ public struct Tracer: Sendable {
 }
 
 extension Request {
-    /// Get a tracer for creating child spans.
+    /// 🔍 **Request Tracer Access**
+    ///
+    /// Convenience property to get a tracer instance for this request.
+    /// Creates a new Tracer instance each time (lightweight).
     public var tracer: Tracer {
         Tracer(request: self)
     }
 }
 
-// MARK: - Database Tracing Helpers
+// MARK: - Database Tracing Extensions
 
 extension Database {
-    /// Trace a database query.
+    /// 🔍 **Trace Database Operation**
+    ///
+    /// Wraps database operations with automatic tracing and timing.
+    /// Records operation type, duration, and handles errors appropriately.
+    ///
+    /// - Parameters:
+    ///   - operation: SQL operation name (e.g., "SELECT", "INSERT")
+    ///   - request: Current request for span context
+    ///   - block: Database operation to trace
+    /// - Returns: Result from database operation
+    /// - Throws: Database errors wrapped with trace context
     public func trace<T>(
         _ operation: String,
         on request: Request,
@@ -240,10 +337,20 @@ extension Database {
     }
 }
 
-// MARK: - Cache Tracing Helpers
+// MARK: - Cache Tracing Extensions
 
 extension Request {
-    /// Trace a cache operation.
+    /// 🔍 **Trace Cache Operation**
+    ///
+    /// Wraps cache operations (Redis, internal cache) with automatic tracing.
+    /// Records hit/miss rates, operation type, and performance.
+    ///
+    /// - Parameters:
+    ///   - operation: Cache operation (get, set, delete, etc.)
+    ///   - key: Cache key being operated on
+    ///   - block: Cache operation to trace
+    /// - Returns: Cached value or nil (get operations)
+    /// - Throws: Cache errors wrapped with trace context
     public func traceCache<T>(
         _ operation: String,
         key: String,
@@ -283,10 +390,20 @@ extension Request {
     }
 }
 
-// MARK: - GraphQL Tracing Helpers
+// MARK: - GraphQL Tracing Extensions
 
 extension Request {
-    /// Trace a GraphQL query.
+    /// 🔍 **Trace GraphQL Query**
+    ///
+    /// Instruments GraphQL query execution with comprehensive tracing.
+    /// Sanitizes and truncates queries for safe logging.
+    ///
+    /// - Parameters:
+    ///   - operation: GraphQL operation type (query, mutation, subscription)
+    ///   - query: The GraphQL query/mutation string
+    ///   - block: GraphQL execution to trace
+    /// - Returns: Query execution result
+    /// - Throws: GraphQL errors wrapped with trace context
     public func traceGraphQL<T>(
         operation: String,
         query: String,
@@ -331,10 +448,21 @@ extension Request {
     }
 }
 
-// MARK: - Content CRUD Tracing Helpers
+// MARK: - Content CRUD Tracing Extensions
 
 extension Request {
-    /// Trace a content CRUD operation.
+    /// 🔍 **Trace Content Operation**
+    ///
+    /// Instruments CMS content operations (create, read, update, delete).
+    /// Records content type, operation type, and performance metrics.
+    ///
+    /// - Parameters:
+    ///   - operation: CRUD operation type
+    ///   - contentType: Content type identifier
+    ///   - entryId: Optional content entry ID
+    ///   - block: Content operation to trace
+    /// - Returns: Operation result
+    /// - Throws: Content operation errors wrapped with trace context
     public func traceContent<T>(
         operation: String,
         contentType: String,
@@ -387,22 +515,57 @@ extension Request {
     }
 }
 
-// MARK: - Health Check Endpoint
+// MARK: - Health Check Extensions
 
 extension TelemetryManager {
-    /// Create a health check response for telemetry.
-    public func healthCheckResponse() -> [String: Any] {
+    /// ❤️ **Health Check Response Builder**
+    ///
+    /// Creates a health check response including telemetry system status.
+    /// Useful for monitoring endpoints and diagnostics dashboards.
+    ///
+    /// - Returns: Health check response dictionary
+    public func healthCheckResponse() -> TelemetryHealthCheckResponse {
         let status = getHealthStatus()
-        return [
-            "telemetry": [
-                "exporter": status.exporter,
-                "healthy": status.isHealthy,
-                "active_spans": status.activeSpans,
-                "pending_spans": status.completedSpans,
-                "pending_metrics": status.metrics,
-                "sampling_rate": 1.0,
-                "metrics_enabled": true
-            ]
-        ]
+        return TelemetryHealthCheckResponse(
+            exporter: status.exporter,
+            healthy: status.isHealthy,
+            activeSpans: status.activeSpans,
+            pendingSpans: status.completedSpans,
+            pendingMetrics: status.metrics,
+            samplingRate: samplingRate,
+            metricsEnabled: exportMetrics
+        )
+    }
+}
+
+/// 📋 **Detailed Health Check Response**
+///
+/// Comprehensive health check response including telemetry configuration.
+/// Used by health check endpoints and monitoring tools.
+public struct TelemetryHealthCheckResponse: Sendable, Content {
+    public let exporter: String
+    public let healthy: Bool
+    public let activeSpans: Int
+    public let pendingSpans: Int
+    public let pendingMetrics: Int
+    public let samplingRate: Double
+    public let metricsEnabled: Bool
+
+    public init(
+        exporter: String,
+        healthy: Bool,
+        activeSpans: Int,
+        pendingSpans: Int,
+        pendingMetrics: Int,
+        samplingRate: Double,
+        metricsEnabled: Bool
+    ) {
+        self.exporter = exporter
+        self.healthy = healthy
+        self.activeSpans = activeSpans
+        self.pendingSpans = pendingSpans
+        self.pendingMetrics = pendingMetrics
+        self.samplingRate = samplingRate
+        self.metricsEnabled = metricsEnabled
     }
 }

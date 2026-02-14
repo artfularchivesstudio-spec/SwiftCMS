@@ -1,0 +1,110 @@
+<!--# Dark Mode Theme Toggle Component
+     This component provides a reusable theme toggle button with animations
+     Usage: #import("admin/partials/theme-toggle.leaf")
+--#>
+
+<!-- Inline Theme Toggle Button -->
+<template x-if="true">
+    <button @click="window.toggleTheme?.() || window.adminApp?.()?.toggleTheme()"
+            class="btn btn-circle btn-ghost btn-sm theme-toggle-btn"
+            :title="isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
+            aria-label="Toggle dark mode">
+        <!-- Moon Icon (shown in light mode) -->
+        <svg x-show="!isDarkMode"
+             xmlns="http://www.w3.org/2000/svg"
+             class="h-5 w-5 theme-icon-moon"
+             fill="none"
+             viewBox="0 0 24 24"
+             stroke="currentColor"
+             stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+        <!-- Sun Icon (shown in dark mode) -->
+        <svg x-show="isDarkMode"
+             xmlns="http://www.w3.org/2000/svg"
+             class="h-5 w-5 theme-icon-sun"
+             fill="none"
+             viewBox="0 0 24 24"
+             stroke="currentColor"
+             stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+    </button>
+</template>
+
+<!-- Theme-aware card component -->
+<template x-if="true">
+    <div class="theme-aware-card bg-base-100 dark:bg-dark-800 rounded-box shadow-sm p-6">
+        <p class="text-base-content dark:text-gray-100">Theme-aware content</p>
+    </div>
+</template>
+
+<!-- Theme-aware text utility classes -->
+<style>
+    /* Theme-aware utilities */
+    .theme-text-primary {
+        color: var(--tw-text-opacity, 1);
+    }
+
+    [data-theme="dark"] .theme-text-primary {
+        color: #f3f4f6;
+    }
+
+    [data-theme="light"] .theme-text-primary {
+        color: #111827;
+    }
+
+    .theme-text-secondary {
+        color: #6b7280;
+    }
+
+    [data-theme="dark"] .theme-text-secondary {
+        color: #9ca3af;
+    }
+
+    .theme-bg-primary {
+        background-color: #ffffff;
+    }
+
+    [data-theme="dark"] .theme-bg-primary {
+        background-color: #1f2937;
+    }
+
+    .theme-bg-secondary {
+        background-color: #f9fafb;
+    }
+
+    [data-theme="dark"] .theme-bg-secondary {
+        background-color: #111827;
+    }
+
+    .theme-border {
+        border-color: #e5e7eb;
+    }
+
+    [data-theme="dark"] .theme-border {
+        border-color: #374151;
+    }
+
+    /* Theme-aware hover states */
+    .theme-hover-bg:hover {
+        background-color: #f3f4f6;
+    }
+
+    [data-theme="dark"] .theme-hover-bg:hover {
+        background-color: #374151;
+    }
+
+    /* Theme-aware interactive elements */
+    .theme-interactive {
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    [data-theme="dark"] .theme-interactive:hover {
+        background-color: rgba(55, 65, 81, 0.5);
+    }
+
+    [data-theme="light"] .theme-interactive:hover {
+        background-color: rgba(243, 244, 246, 0.5);
+    }
+</style>
