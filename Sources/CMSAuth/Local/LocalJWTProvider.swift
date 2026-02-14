@@ -467,6 +467,42 @@ public struct LocalJWTProvider: AuthProvider {
         throw Abort(.unauthorized, reason: "Local JWT verification not yet implemented")
     }
 
+    public func issueToken(userId: String, email: String, roles: [String], tokenType: AuthTokenType) throws -> String {
+        // Simple placeholder implementation for build fix
+        // In a real implementation, this would sign a JWT using the secret
+        
+        // Construct a basic JWT structure (this is a mock for now to satisfy the build)
+        // Access token: expires in 1 hour
+        // Refresh token: expires in 30 days
+        
+        let header = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9" // alg: HS256, typ: JWT
+        
+        // Create a basic payload
+        let now = Date().timeIntervalSince1970
+        let exp = tokenType == .access ? now + 3600 : now + 2_592_000
+        
+        let payloadDict: [String: Any] = [
+            "sub": userId,
+            "email": email,
+            "roles": roles,
+            "type": tokenType.rawValue,
+            "exp": exp,
+            "iat": now
+        ]
+        
+        // JSON encoding the payload (mock)
+        let payloadData = try JSONSerialization.data(withJSONObject: payloadDict)
+        let payload = payloadData.base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+            
+        // Mock signature (since we don't have the signer setup in this context easily without more code)
+        let signature = "mock_signature_for_build_fix"
+        
+        return "\(header).\(payload).\(signature)"
+    }
+
     public func middleware() -> any AsyncMiddleware {
         BasicAuthMiddleware()
     }

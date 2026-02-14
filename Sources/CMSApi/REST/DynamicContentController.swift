@@ -276,9 +276,10 @@ public struct DynamicContentController: RouteCollection, Sendable {
             filters: filters,
             fields: fields
         )
-        .tap { result in
-            req.logger.info("📊 Content list retrieved", metadata: [
-                "contentType": contentType,
+        
+        // Log the result
+        req.logger.info("📊 Content list retrieved", metadata: [
+            "contentType": contentType,
                 "count": "\(result.data.count)",
                 "page": "\(page)"
             ])
@@ -310,34 +311,7 @@ public struct DynamicContentController: RouteCollection, Sendable {
     /// ```
     ///
     /// - Since: 1.0.0
-    private static func parseFilterParams(from req: Request) -> [String: String]? {
-        guard let queryString = req.url.query else { return nil }
 
-        var filters: [String: String] = [:]
-        let pairs = queryString.split(separator: "&")
-        for pair in pairs {
-            let keyValue = pair.split(separator: "=", maxSplits: 1)
-            guard keyValue.count == 2 else { continue }
-
-            let rawKey = String(keyValue[0])
-            let rawValue = String(keyValue[1])
-                .removingPercentEncoding ?? String(keyValue[1])
-
-            // Match filter[fieldName] pattern
-            if rawKey.hasPrefix("filter%5B") || rawKey.hasPrefix("filter[") {
-                let decodedKey = rawKey.removingPercentEncoding ?? rawKey
-                if decodedKey.hasPrefix("filter["),
-                   decodedKey.hasSuffix("]") {
-                    let fieldName = String(decodedKey.dropFirst("filter[".count).dropLast(1))
-                    if !fieldName.isEmpty {
-                        filters[fieldName] = rawValue
-                    }
-                }
-            }
-        }
-
-        return filters.isEmpty ? nil : filters
-    }
 
     private static func parseFilterParams(from req: Request) -> [String: String]? {
         guard let queryString = req.url.query else {
@@ -543,9 +517,8 @@ public struct DynamicContentController: RouteCollection, Sendable {
                     on: req.db,
                     populateFields: fields
                 )
-                .tap { _ in
-                    req.logger.debug("✅ Relations resolved successfully")
-                }
+                
+                req.logger.debug("✅ Relations resolved successfully")
 
                 response = ContentEntryResponseDTO(
                     id: response.id,
@@ -745,17 +718,9 @@ public struct DynamicContentController: RouteCollection, Sendable {
             eventBus: req.eventBus,
             context: context
         )
-        .recover { error in
-            req.logger.error("🗑 Failed to delete entry", metadata: [
-                "error": "\(error)",
-                "contentType": contentType,
-                "entryId": entryId.uuidString
-            ])
-            throw error
-        }
-
-        req.logger.info("🗑 Content entry deleted successfully", metadata:
-                       ["contentType": contentType, "entryId": entryId.uuidString])
+        
+        req.logger.info("🗑 Entry deleted successfully", metadata: [
+                       "contentType": contentType, "entryId": entryId.uuidString])
         return .noContent
     }
 
@@ -891,20 +856,20 @@ public struct DynamicContentController: RouteCollection, Sendable {
     /// POST /api/v1/posts/123e4567-e89b-12d3-a456-426614174000/versions/3/restore
     /// ```
     ///
-    ## Authentication
-    Requires valid JWT token with update permissions
+    /// ## Authentication
+    /// Requires valid JWT token with update permissions
     ///
-    ## Rate Limit
-    - 20 requests/minute per user
-    //
-    ## Versioning
-    Creates a new version (N+1) with the restored data
-    //
-    ## Event Emission
-    Emits `ContentUpdatedEvent` and `VersionRestoredEvent`
-    //
-    - SeeAlso: `VersionService`, `VersionRestoredEvent`
-    - Since: 1.0.0
+    /// ## Rate Limit
+    /// - 20 requests/minute per user
+    ///
+    /// ## Versioning
+    /// Creates a new version (N+1) with the restored data
+    ///
+    /// ## Event Emission
+    /// Emits `ContentUpdatedEvent` and `VersionRestoredEvent`
+    ///
+    /// - SeeAlso: `VersionService`, `VersionRestoredEvent`
+    /// - Since: 1.0.0
     @Sendable
     func restoreVersion(req: Request) async throws -> ContentEntryResponseDTO {
         guard let entryId = req.parameters.get("entryId", as: UUID.self) else {
@@ -1005,50 +970,7 @@ public struct ContentTypeController: RouteCollection, Sendable {
     }
 }
 
-// MARK: - SearchController
 
-/// Search endpoint controller.
-/// Routes: /api/v1/search
-public struct SearchController: RouteCollection, Sendable {
-
-    public init() {}
-
-    public func boot(routes: any RoutesBuilder) throws {
-        routes.get("search", use: search)
-    }
-
-
-
-    @Sendable
-    func search(req: Request) async throws -> PaginationWrapper<ContentEntryResponseDTO> {
-        guard let query = req.query[String.self, at: "q"], !query.isEmpty else {
-            throw ApiError.badRequest("Query parameter 'q' is required")
-        }
-
-        let contentType = req.query[String.self, at: "type"]
-        let page = req.query[Int.self, at: "page"] ?? 1
-        let perPage = min(req.query[Int.self, at: "perPage"] ?? 20, 100)
-
-        // Basic database search (Meilisearch integration comes via CMSSearch module)
-        var dbQuery = ContentEntry.query(on: req.db)
-            .filter(\.$deletedAt == nil)
-            .filter(\.$status == "published")
-
-        if let contentType = contentType {
-            dbQuery = dbQuery.filter(\.$contentType == contentType)
-        }
-
-        let total = try await dbQuery.count()
-        let entries = try await dbQuery
-            .offset((page - 1) * perPage)
-            .limit(perPage)
-            .sort(\.$createdAt, .descending)
-            .all()
-
-        let dtos = entries.map { $0.toResponseDTO() }
-        return .paginate(items: dtos, page: page, perPage: perPage, total: total)
-    }
-}
 
 // MARK: - Helpers
 

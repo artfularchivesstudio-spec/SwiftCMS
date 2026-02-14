@@ -711,6 +711,13 @@ public struct FirebaseProvider: AuthProvider, Sendable {
         JWTBearerAuthenticator(provider: self)
     }
 
+    /// 🔑 **Issue authentication token**
+    ///
+    /// Not supported for Firebase provider as tokens are issued by Firebase directly.
+    public func issueToken(userId: String, email: String, roles: [String], tokenType: AuthTokenType) throws -> String {
+        throw Abort(.notImplemented, reason: "Firebase provider does not support manual token issuance via this API.")
+    }
+
     // MARK: - 📦 Certificate Management
 
     /// 📦 **Fetch Firebase Certificates with Caching**

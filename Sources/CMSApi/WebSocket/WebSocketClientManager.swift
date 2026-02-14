@@ -119,6 +119,7 @@ public actor WebSocketClientManager {
         public let tenantId: String?
         public let connectedAt: Date
         public var lastActivity: Date
+        public var currentContentType: String?
 
         public init(id: UUID, sessionId: String, userId: String, userEmail: String? = nil, tenantId: String? = nil) {
             self.id = id
@@ -128,6 +129,7 @@ public actor WebSocketClientManager {
             self.tenantId = tenantId
             self.connectedAt = Date()
             self.lastActivity = Date()
+            self.currentContentType = nil
         }
     }
 
@@ -483,7 +485,7 @@ public actor WebSocketClientManager {
         // Update local subscriptions
         let channel = channelName(for: contentType)
         subscriptions[channel]?.remove(clientId)
-        if subscriptions[channel]?.isEmpty {
+        if subscriptions[channel]?.isEmpty == true {
             subscriptions.removeValue(forKey: channel)
         }
 
@@ -620,11 +622,11 @@ public actor WebSocketClientManager {
             data: .init(
                 success: true,
                 message: "Connected successfully",
-                payload: try? .init([
-                    "config": .init([
-                        "heartbeatInterval": config.heartbeatInterval,
-                        "enablePresenceTracking": config.enablePresenceTracking,
-                        "enableConflictDetection": config.enableConflictDetection
+                payload: .dictionary([
+                    "config": .dictionary([
+                        "heartbeatInterval": .double(config.heartbeatInterval),
+                        "enablePresenceTracking": .bool(config.enablePresenceTracking),
+                        "enableConflictDetection": .bool(config.enableConflictDetection)
                     ])
                 ])
             )
@@ -670,12 +672,12 @@ public actor WebSocketClientManager {
                 success: false,
                 message: "Content is being edited by another user",
                 entryId: entryId,
-                payload: try? .init([
-                    "conflictingUser": .init([
-                        "userId": currentEditorIdentity.userId,
-                        "userEmail": currentEditorIdentity.userEmail
+                payload: .dictionary([
+                    "conflictingUser": .dictionary([
+                        "userId": .string(currentEditorIdentity.userId),
+                        "userEmail": .string(currentEditorIdentity.userEmail ?? "")
                     ]),
-                    "suggestedAction": "merge"
+                    "suggestedAction": .string("merge")
                 ])
             )
         )

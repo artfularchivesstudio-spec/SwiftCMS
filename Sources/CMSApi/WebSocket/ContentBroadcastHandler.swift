@@ -145,8 +145,8 @@ public actor ContentBroadcastHandler {
     public struct PresenceInfo: Sendable {
         public let entryId: UUID
         public let contentType: String
-        public let activeEditors: Set<EditorPresence>
-        public let lastActivity: Date
+        public var activeEditors: Set<EditorPresence>
+        public var lastActivity: Date
 
         public struct EditorPresence: Sendable, Hashable {
             public let userId: String
@@ -176,7 +176,9 @@ public actor ContentBroadcastHandler {
 
     public init(eventBus: EventBus) {
         self.eventBus = eventBus
-        setupEventSubscriptions()
+        Task { [weak self] in
+            await self?.setupEventSubscriptions()
+        }
     }
 
     // MARK: - Client Management
@@ -499,7 +501,7 @@ public actor ContentBroadcastHandler {
     private func removeEditorFromPresence(entryId: UUID, userId: String) {
         guard var info = presence[entryId] else { return }
 
-        info.activeEditors.removeAll { $0.userId == userId }
+        info.activeEditors.removeAll(where: { $0.userId == userId })
 
         if info.activeEditors.isEmpty {
             presence.removeValue(forKey: entryId)
@@ -526,5 +528,4 @@ public actor ContentBroadcastHandler {
 
 // MARK: - Helpers
 
-extension UUID: @retroactive Sendable {}
-extension String: @retroactive Sendable {}
+

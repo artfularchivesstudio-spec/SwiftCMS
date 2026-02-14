@@ -157,7 +157,7 @@ public struct WebhookDLQController: RouteCollection, Sendable {
         req.logger.info("Retried webhook delivery from DLQ: \(entryId)")
 
         // Return appropriate response based on request type
-        if req.headers[.contentType]?.contains("application/json") == true {
+        if req.headers[.contentType].contains("application/json") {
             return Response(status: .ok, body: .init(string: #"{"success": true}"#))
         } else {
             return req.redirect(to: "/admin/webhooks/dlq")
@@ -237,7 +237,7 @@ public struct WebhookDLQController: RouteCollection, Sendable {
 
         req.logger.info("Deleted DLQ entry: \(entryId)")
 
-        if req.headers[.contentType]?.contains("application/json") == true {
+        if req.headers[.contentType].contains("application/json") {
             return Response(status: .noContent)
         } else {
             return req.redirect(to: "/admin/webhooks/dlq")

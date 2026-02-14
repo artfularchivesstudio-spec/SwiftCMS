@@ -619,6 +619,13 @@ public struct Auth0Provider: AuthProvider, Sendable {
         JWTBearerAuthenticator(provider: self)
     }
 
+    /// 🔑 **Issue authentication token**
+    ///
+    /// Not supported for Auth0 provider as tokens are issued by Auth0 directly.
+    public func issueToken(userId: String, email: String, roles: [String], tokenType: AuthTokenType) throws -> String {
+        throw Abort(.notImplemented, reason: "Auth0 provider does not support manual token issuance via this API.")
+    }
+
     // MARK: - Token Decoding
 
     /// 🔍 Decode the payload portion of a JWT (simplified implementation)

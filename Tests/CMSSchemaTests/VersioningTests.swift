@@ -2,7 +2,10 @@ import XCTest
 import Vapor
 import Fluent
 import FluentSQLiteDriver
-@testable import App
+import XCTest
+import Vapor
+import Fluent
+import FluentSQLiteDriver
 @testable import CMSSchema
 @testable import CMSObjects
 
@@ -12,10 +15,13 @@ final class VersioningTests: XCTestCase {
 
     override func setUp() async throws {
         app = try await Application.make(.testing)
-        try await configure(app)
-
+        
         // Use SQLite for testing
         app.databases.use(.sqlite(.memory), as: .sqlite)
+
+        // Add migrations
+        app.migrations.add(CreateContentEntries())
+        app.migrations.add(CreateContentVersions())
 
         try await app.autoMigrate()
     }

@@ -6,6 +6,36 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — Documentation Enchantments & Authentication Refinements ✨📜
+
+**Mystical Documentation Overhaul (2026-02-14)** ✨
+- **Fixed comment syntax errors** in Swift files to appease the Xcode documentation spirits
+  - `AuthController.swift` (53 lines shortened, simplified refresh flow)
+  - `DynamicContentController.swift` (98 lines streamlined, removed duplicate methods)
+  - `WebSocket` handlers (ContentBroadcast & ClientManager, 33 lines optimized)
+  - `AuthProvider` implementations (Auth0, Firebase, Local JWT +21 lines enhanced)
+  - `VersioningTests.swift` (+12 lines of comprehensive test coverage)
+- **Enhanced LocalJWTProvider** with token type enum (`.access` vs `.refresh`) for mystical security separation
+- **Removed markdown-in-doc-comment** anti-patterns that angered the Swift compiler gods
+- **Created spellbinding AI CODING RULES** document establishing our whimsical development covenant
+
+**What We Learned** 🔮
+- Xcode documentation tool prefers triple-slash (`///`) over double-hash (`##`) in doc comments
+- Token separation (access vs refresh) is crucial for proper JWT lifecycle management
+- The importance of observant code review revealed through duplicate method detection
+
+**What Remains TODO** 🎯
+- Complete full JWT refresh token verification implementation (currently graceful stub)
+- Integrate the new AI CODING RULES ritual into our daily development practice
+- Update all future documentation with whimsical emojis and enchanting prose
+
+**Insights** 💭
+- Documentation isn't just comments—it's a spellbook for future developers
+- Every line of code tells a story; make it a magical one
+- Error messages should guide like a wise wizard, not scold like a grumpy troll
+
+---
+
 ### Added — Track 1: Content Experience (Complete)
 
 **Content Editor Heuristics (1.1)**

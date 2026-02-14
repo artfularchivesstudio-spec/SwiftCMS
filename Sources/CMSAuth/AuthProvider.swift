@@ -267,6 +267,27 @@ public protocol AuthProvider: Sendable {
     /// }
     /// ```
     func middleware() -> any AsyncMiddleware
+
+    /// 🔑 **Issue authentication token**
+    ///
+    /// Generates a new token for the specified user and scopes.
+    ///
+    /// - Parameters:
+    ///   - userId: The unique identifier of the user
+    ///   - email: The user's email address
+    ///   - roles: The roles assigned to the user
+    ///   - tokenType: The type of token to issue (access or refresh)
+    /// - Returns: A signed JWT token string
+    /// - Throws: specific errors if token generation fails
+    func issueToken(userId: String, email: String, roles: [String], tokenType: AuthTokenType) throws -> String
+}
+
+/// 🎫 **Token Type**
+///
+/// Distinguishes between access and refresh tokens.
+public enum AuthTokenType: String, Sendable, Codable {
+    case access
+    case refresh
 }
 
 // MARK: - 📋 RBAC Middleware

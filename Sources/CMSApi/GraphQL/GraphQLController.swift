@@ -313,7 +313,7 @@ struct GraphQLRequest: Content {
 }
 
 /// GraphQL response structure
-struct GraphQLResponse: Content {
+public struct GraphQLResponse: Content {
     let data: [String: AnyCodableValue]?
     let errors: [GraphQLError]?
 
