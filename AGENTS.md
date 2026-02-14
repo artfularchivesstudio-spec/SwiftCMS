@@ -6,9 +6,9 @@
 
 ## Wave 1 — Foundation & Core Infrastructure (Weeks 1-3)
 
-**Goal:** Server boots, connects PostgreSQL + Redis, authenticates Auth0 JWT, `/healthz` returns 200, module system + EventBus work.
+**Goal:** Server boots, connects PostgreSQL + Redis, authenticates Auth0 JWT, `/healthz` returns 200, module system + EventBus work. **Minimum Swift Version: 6.1+**.
 
-**Exit Criteria:** Server boots -> connects PostgreSQL + Redis -> authenticates Auth0 JWT -> 200 on /healthz -> module system registers test module -> EventBus publishes + receives test event -> Docker build passes -> CI green.
+**Exit Criteria:** Server boots -> connects PostgreSQL + Redis -> authenticates Auth0 JWT -> 200 on /healthz -> module system registers test module -> EventBus publishes + receives test event -> Docker build passes -> CI green -> Swift 6 strict concurrency verified.
 
 ### Agent 1: Project Bootstrap
 - **Owns:** `Sources/App/`, `Package.swift`, `docker-compose.yml`, `.env.example`, `Makefile`
