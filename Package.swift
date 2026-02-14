@@ -1,4 +1,4 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.0
 // SwiftCMS - A Type-Safe, High-Performance Headless CMS for Apple-Native Teams
 
 import PackageDescription

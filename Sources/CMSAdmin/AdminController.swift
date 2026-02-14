@@ -11,7 +11,7 @@ import CMSEvents
 
 /// Main admin panel controller.
 /// Routes: /admin
-public struct AdminController: RouteCollection {
+public struct AdminController: RouteCollection, Sendable {
 
     public init() {}
 

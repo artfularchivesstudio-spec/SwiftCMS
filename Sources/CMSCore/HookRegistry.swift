@@ -42,10 +42,10 @@ public final class HookRegistry: Sendable {
     }
 
     /// Invoke all handlers for a named hook without expecting a return value.
-    public func notify(hookName: String, args: Any) async throws {
+    public func notify<T: Sendable>(hookName: String, args: T) async throws {
         let handlers = _handlers.withLockedValue { $0[hookName] ?? [] }
         for handler in handlers {
-            if let typed = handler as? TypedHookHandler<Any> {
+            if let typed = handler as? TypedHookHandler<T> {
                 _ = try await typed.handler(args)
             }
         }

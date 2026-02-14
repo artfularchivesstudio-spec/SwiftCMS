@@ -11,7 +11,7 @@ SwiftCMS is an open-source, headless CMS built entirely in Swift using Vapor 4.x
 
 ## Swift & Toolchain
 
-- **Swift version:** 5.10+ — use async/await and Sendable. NO callback patterns.
+- **Swift version:** 6.1+ — use async/await and Sendable. NO callback patterns.
 - **Vapor version:** 4.x (latest) — `from: "4.89.0"`
 - **Platform:** Code MUST compile on macOS AND Linux (Ubuntu 24.04). NO macOS-only Foundation APIs.
 - **Package manager:** SPM only. No CocoaPods, Carthage, or .xcodeproj files.

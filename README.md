@@ -2,7 +2,7 @@
 
 **A Type-Safe, High-Performance Headless CMS for Apple-Native Teams**
 
-![Swift 5.10](https://img.shields.io/badge/Swift-5.10-orange.svg)
+![Swift 6.1+](https://img.shields.io/badge/Swift-6.1%2B-orange.svg)
 ![Vapor 4](https://img.shields.io/badge/Vapor-4-blue.svg)
 
 SwiftCMS brings Strapi's flexibility to Swift's performance — runtime-defined content types with type-safe client SDKs, built for teams shipping iOS and macOS apps.

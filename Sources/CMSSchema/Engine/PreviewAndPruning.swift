@@ -50,7 +50,7 @@ public struct ContentPreviewService: Sendable {
 // MARK: - Preview Controller Extension
 
 /// Add preview routes to the content API.
-public struct PreviewController: RouteCollection {
+public struct PreviewController: RouteCollection, Sendable {
     public init() {}
 
     public func boot(routes: any RoutesBuilder) throws {

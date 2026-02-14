@@ -122,7 +122,7 @@ public struct GraphQLSchemaBuilder: Sendable {
 
 /// GraphQL endpoint controller.
 /// Routes: /graphql
-public struct GraphQLController: RouteCollection {
+public struct GraphQLController: RouteCollection, Sendable {
 
     public init() {}
 

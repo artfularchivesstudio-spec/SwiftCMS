@@ -7,7 +7,7 @@ import CMSAuth
 
 // MARK: - Roles Admin Controller
 
-public struct RolesController: RouteCollection {
+public struct RolesController: RouteCollection, Sendable {
     public init() {}
 
     public func boot(routes: any RoutesBuilder) throws {
@@ -83,7 +83,7 @@ public struct RolesController: RouteCollection {
 
 // MARK: - Version Admin Controller
 
-public struct VersionAdminController: RouteCollection {
+public struct VersionAdminController: RouteCollection, Sendable {
     public init() {}
 
     public func boot(routes: any RoutesBuilder) throws {
@@ -123,7 +123,7 @@ public struct VersionAdminController: RouteCollection {
 
 // MARK: - Bulk Operations Controller
 
-public struct BulkOperationsController: RouteCollection {
+public struct BulkOperationsController: RouteCollection, Sendable {
     public init() {}
 
     public func boot(routes: any RoutesBuilder) throws {
@@ -195,7 +195,7 @@ struct BulkActionDTO: Content {
 
 // MARK: - Content Type Import/Export Controller
 
-public struct ContentTypeImportExportController: RouteCollection {
+public struct ContentTypeImportExportController: RouteCollection, Sendable {
     public init() {}
 
     public func boot(routes: any RoutesBuilder) throws {
@@ -280,7 +280,7 @@ struct ContentTypeExport: Content {
 
 // MARK: - Locale Settings Controller
 
-public struct LocaleSettingsController: RouteCollection {
+public struct LocaleSettingsController: RouteCollection, Sendable {
     public init() {}
 
     public func boot(routes: any RoutesBuilder) throws {

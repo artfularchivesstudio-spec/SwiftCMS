@@ -122,7 +122,7 @@ public struct MediaService: Sendable {
         )
         try await eventBus.publish(event: event, context: context)
 
-        let url = storage.publicURL(key: key)
+        _ = storage.publicURL(key: key)
         return media.toResponseDTO(baseURL: "")
     }
 }
@@ -131,7 +131,7 @@ public struct MediaService: Sendable {
 
 /// Controller for media file operations.
 /// Routes: /api/v1/media
-public struct MediaController: RouteCollection {
+public struct MediaController: RouteCollection, Sendable {
 
     public init() {}
 

@@ -7,7 +7,7 @@ import CMSEvents
 
 /// Dynamic content controller that handles CRUD for any content type.
 /// Routes: /api/v1/:contentType
-public struct DynamicContentController: RouteCollection {
+public struct DynamicContentController: RouteCollection, Sendable {
 
     public init() {}
 
@@ -301,7 +301,7 @@ public struct DynamicContentController: RouteCollection {
 
 /// Controller for managing content type definitions.
 /// Routes: /api/v1/content-types
-public struct ContentTypeController: RouteCollection {
+public struct ContentTypeController: RouteCollection, Sendable {
 
     public init() {}
 
@@ -371,7 +371,7 @@ public struct ContentTypeController: RouteCollection {
 
 /// Search endpoint controller.
 /// Routes: /api/v1/search
-public struct SearchController: RouteCollection {
+public struct SearchController: RouteCollection, Sendable {
 
     public init() {}
 
