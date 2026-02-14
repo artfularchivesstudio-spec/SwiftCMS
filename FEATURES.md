@@ -8,12 +8,14 @@ Status key: DONE | IN PROGRESS | PENDING
 
 | Feature | Status | Module | Wave |
 |---|---|---|---|
-| Client Layer (iOS/macOS/web/admin) | PENDING | — | W2-W3 |
-| API Layer (REST + GraphQL + WebSocket + Webhooks) | PENDING | CMSApi | W2-W3 |
-| Service Layer (Content, Media, Auth, Search, Event, Job, Tenant) | PENDING | Multiple | W2-W4 |
-| Core Engine (Schema Registry, JSON Validator, Hook Registry, EventBus) | DONE | CMSCore, CMSSchema, CMSEvents | W1 |
-| Data Layer (Fluent/PostgreSQL, Redis, Meilisearch, S3) | DONE | CMSSchema, App | W1 |
-| Infrastructure (Docker, K8s, Observability, Rate Limiting, Health) | DONE | App, Docker, k8s | W1 |
+| Client Layer (iOS/macOS/web) | PENDING | — | W3-W4 |
+| Admin Panel Layer (HTMX/Leaf) | IN PROGRESS | CMSAdmin | W1-W2 |
+| API Layer (REST + GraphQL + WebSocket) | IN PROGRESS | CMSApi | W2-W3 |
+| Service Layer (Content, Media, Auth, Search) | IN PROGRESS | Multiple | W2-W3 |
+| Event & Job Layer (Webhooks, Tasks) | IN PROGRESS | CMSEvents, CMSJobs | W2-W3 |
+| Core Engine (Schema, Logic, Hooks) | DONE | CMSCore, CMSSchema | W1 |
+| Data Layer (DB, Cache, Search, S3) | DONE | CMSSchema, App | W1 |
+| Infrastructure (Docker, K8s, CI/CD) | DONE | App, Docker | W1 |
 
 ## 2. Content Engine
 
@@ -213,21 +215,7 @@ Status key: DONE | IN PROGRESS | PENDING
 | ETag conditional responses | PENDING | CMSApi | W4 |
 | Connection pool tuning (PgBouncer) | PENDING | Infrastructure | W4 |
 
-## 18. DevOps & Deployment
-
-| Feature | Status | Module | Wave |
-|---|---|---|---|
-| Multi-stage Dockerfile | DONE | Docker | W1 |
-| docker-compose.yml (PG + Redis + Meili) | DONE | Docker | W1 |
-| Kubernetes manifests | DONE | k8s/ | W1 |
-| GitHub Actions CI | DONE | .github/workflows | W1 |
-| HPA auto-scaling | DONE (manifest) | k8s/ | W1 |
-| Production-optimized image | PENDING | Docker | W4 |
-| Secrets management | PENDING | k8s | W4 |
-
----
-
-## Performance Targets (vs Strapi/Node.js)
+## 18. Performance Targets (vs Strapi/Node.js)
 
 | Metric | SwiftCMS Target (p99) | Strapi Typical | Advantage |
 |---|---|---|---|
@@ -239,3 +227,15 @@ Status key: DONE | IN PROGRESS | PENDING
 | Cold start (container) | ~200ms | 2-5s | 10-25x faster |
 | Sustained throughput | >1,000 req/sec | 200-400 req/sec | 3-5x higher |
 | Docker image size | ~200MB | ~800MB-1.2GB | 4-6x smaller |
+
+## 19. DevOps & Deployment
+
+| Feature | Status | Module | Wave |
+|---|---|---|---|
+| Multi-stage Dockerfile | DONE | Docker | W1 |
+| docker-compose.yml (PG + Redis + Meili) | DONE | Docker | W1 |
+| Kubernetes manifests | DONE | k8s/ | W1 |
+| GitHub Actions CI | DONE | .github/workflows | W1 |
+| HPA auto-scaling | DONE (manifest) | k8s/ | W1 |
+| Production-optimized image | PENDING | Docker | W4 |
+| Secrets management | PENDING | k8s | W4 |

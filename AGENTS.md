@@ -129,7 +129,7 @@
 ### Agent 4: Media Service
 - **Owns:** `Sources/CMSMedia/`
 - **Deliverables:**
-  - `S3StorageProvider` — Full Soto v6 implementation.
+  - `S3StorageProvider` — Full Soto v7 implementation.
   - `MediaController` — Upload/List/Delete API.
   - Multipart handling with file size/type validation.
   - Metadata extraction (dimensions, MIME, hash).
