@@ -73,7 +73,7 @@ public struct WebSocketServer: Sendable {
                 req.logger.info("WebSocket connected: \(clientId) (total: \(count))")
 
                 // Handle incoming messages (subscription requests)
-                ws.onText { ws, text in
+                ws.onText { _, text in
                     Task {
                         // Expected: {"subscribe": "contentType"}
                         if let data = text.data(using: .utf8),
@@ -95,28 +95,28 @@ public struct WebSocketServer: Sendable {
         }
 
         // Subscribe to content events and broadcast
-        app.eventBus.subscribe(ContentCreatedEvent.self) { event, context in
+        app.eventBus.subscribe(ContentCreatedEvent.self) { event, _ in
             let json = """
             {"event":"content.created","contentType":"\(event.contentType)","entryId":"\(event.entryId)"}
             """
             await manager.broadcast(event: "content.created", contentType: event.contentType, data: json)
         }
 
-        app.eventBus.subscribe(ContentUpdatedEvent.self) { event, context in
+        app.eventBus.subscribe(ContentUpdatedEvent.self) { event, _ in
             let json = """
             {"event":"content.updated","contentType":"\(event.contentType)","entryId":"\(event.entryId)"}
             """
             await manager.broadcast(event: "content.updated", contentType: event.contentType, data: json)
         }
 
-        app.eventBus.subscribe(ContentDeletedEvent.self) { event, context in
+        app.eventBus.subscribe(ContentDeletedEvent.self) { event, _ in
             let json = """
             {"event":"content.deleted","contentType":"\(event.contentType)","entryId":"\(event.entryId)"}
             """
             await manager.broadcast(event: "content.deleted", contentType: event.contentType, data: json)
         }
 
-        app.eventBus.subscribe(ContentPublishedEvent.self) { event, context in
+        app.eventBus.subscribe(ContentPublishedEvent.self) { event, _ in
             let json = """
             {"event":"content.published","contentType":"\(event.contentType)","entryId":"\(event.entryId)"}
             """

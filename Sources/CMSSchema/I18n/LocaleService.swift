@@ -12,7 +12,7 @@ public struct LocaleService: Sendable {
         "fr-CA": ["fr-FR", "fr"],
         "pt-BR": ["pt-PT", "pt"],
         "es-MX": ["es-ES", "es"],
-        "zh-TW": ["zh-CN", "zh"],
+        "zh-TW": ["zh-CN", "zh"]
     ]
 
     /// Get a content entry with locale fallback.
@@ -29,8 +29,7 @@ public struct LocaleService: Sendable {
             .filter(\.$id == id)
             .filter(\.$locale == locale)
             .filter(\.$deletedAt == nil)
-            .first()
-        {
+            .first() {
             return entry
         }
 
@@ -42,8 +41,7 @@ public struct LocaleService: Sendable {
                 .filter(\.$id == id)
                 .filter(\.$locale == fallbackLocale)
                 .filter(\.$deletedAt == nil)
-                .first()
-            {
+                .first() {
                 return entry
             }
         }

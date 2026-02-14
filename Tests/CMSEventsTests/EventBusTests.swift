@@ -8,7 +8,7 @@ final class EventBusTests: XCTestCase {
         let bus = InProcessEventBus()
         let expectation = XCTestExpectation(description: "Event received")
 
-        bus.subscribe(ContentCreatedEvent.self) { event, context in
+        bus.subscribe(ContentCreatedEvent.self) { event, _ in
             XCTAssertEqual(event.contentType, "articles")
             expectation.fulfill()
         }

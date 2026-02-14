@@ -31,7 +31,7 @@ public actor RedisStreamsEventBus: EventBus {
                         .init(from: "cms:\(eventName)"),
                         .init(from: "*"),
                         .init(from: "payload"),
-                        .init(from: payloadString),
+                        .init(from: payloadString)
                     ]
                 ).get()
                 context.logger.debug("Redis Streams: published \(eventName)")

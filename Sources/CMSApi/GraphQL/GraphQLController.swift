@@ -26,7 +26,7 @@ public struct GraphQLSchemaBuilder: Sendable {
         "media": "ID",
         "relationHasOne": "ID",
         "relationHasMany": "[ID]",
-        "component": "JSON",
+        "component": "JSON"
     ]
 
     /// Generate GraphQL SDL from content type definitions.

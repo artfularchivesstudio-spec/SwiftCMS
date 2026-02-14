@@ -52,7 +52,7 @@ public struct DynamicContentController: RouteCollection {
         let sort = req.query[String.self, at: "sort"]
 
         // Parse sort parameter: "fieldName:asc" or "fieldName:desc"
-        var sortField: String? = nil
+        var sortField: String?
         var sortDir = "desc"
         if let sort = sort, !sort.isEmpty {
             let parts = sort.split(separator: ":", maxSplits: 1)
@@ -173,8 +173,7 @@ public struct DynamicContentController: RouteCollection {
             let fields = populateParam.split(separator: ",").map(String.init)
             if let typeDef = try await ContentTypeDefinition.query(on: req.db)
                 .filter(\.$slug == contentType)
-                .first()
-            {
+                .first() {
                 let resolvedData = try await RelationResolver.resolve(
                     data: response.data,
                     schema: typeDef.jsonSchema,

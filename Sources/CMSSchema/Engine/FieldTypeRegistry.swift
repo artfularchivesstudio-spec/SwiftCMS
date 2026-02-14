@@ -53,7 +53,7 @@ public struct FieldTypeRegistry: Sendable {
         ]),
         "component": .dictionary([
             "type": "object"
-        ]),
+        ])
     ]
 
     /// Returns the JSON Schema fragment for a given field type.
@@ -139,7 +139,7 @@ public struct SchemaGenerator: Sendable {
 
         var schema: [String: AnyCodableValue] = [
             "type": "object",
-            "properties": .dictionary(properties),
+            "properties": .dictionary(properties)
         ]
 
         if !requiredFields.isEmpty {

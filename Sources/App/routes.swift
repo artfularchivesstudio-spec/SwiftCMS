@@ -10,7 +10,7 @@ import CMSObjects
 /// Register all application routes.
 public func routes(_ app: Application) throws {
     // ─── Health Checks ────────────────────────────────────────────
-    app.get("healthz") { req -> HTTPStatus in
+    app.get("healthz") { _ -> HTTPStatus in
         .ok
     }
 
@@ -28,7 +28,7 @@ public func routes(_ app: Application) throws {
         return res
     }
 
-    app.get("startup") { req -> HTTPStatus in
+    app.get("startup") { _ -> HTTPStatus in
         .ok
     }
 

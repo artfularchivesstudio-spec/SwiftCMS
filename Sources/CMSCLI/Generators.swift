@@ -12,7 +12,7 @@ public struct SwiftSDKGenerator {
         "number": "Double",
         "boolean": "Bool",
         "array": "[AnyCodableValue]",
-        "object": "[String: AnyCodableValue]",
+        "object": "[String: AnyCodableValue]"
     ]
 
     /// Generate a Swift struct from a content type definition.
@@ -138,7 +138,7 @@ public struct TypeScriptGenerator {
         "number": "number",
         "boolean": "boolean",
         "array": "any[]",
-        "object": "Record<string, any>",
+        "object": "Record<string, any>"
     ]
 
     /// Generate TypeScript interface.
@@ -174,8 +174,6 @@ public struct TypeScriptGenerator {
         return code
     }
 }
-
-
 
 // MARK: - Static Export
 

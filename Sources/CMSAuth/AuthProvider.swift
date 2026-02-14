@@ -20,8 +20,6 @@ public protocol AuthProvider: Sendable {
     func middleware() -> any AsyncMiddleware
 }
 
-
-
 // MARK: - RBAC Middleware
 
 /// Middleware that enforces role-based access control.

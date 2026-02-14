@@ -9,7 +9,7 @@ final class CMSEventsTests: XCTestCase {
         let expectation = XCTestExpectation(description: "Event received")
         var receivedEntryId: UUID?
 
-        bus.subscribe(ContentCreatedEvent.self) { event, context in
+        bus.subscribe(ContentCreatedEvent.self) { event, _ in
             receivedEntryId = event.entryId
             expectation.fulfill()
         }

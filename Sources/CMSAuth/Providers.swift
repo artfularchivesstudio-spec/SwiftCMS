@@ -146,7 +146,7 @@ public struct LocalJWTProvider: AuthProvider, Sendable {
             "email": .string(email),
             "roles": .array(roles),
             "exp": .double(Date().addingTimeInterval(86400).timeIntervalSince1970),
-            "iat": .double(Date().timeIntervalSince1970),
+            "iat": .double(Date().timeIntervalSince1970)
         ]
         let payloadData = try JSONEncoder().encode(payload)
 

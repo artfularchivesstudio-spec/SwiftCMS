@@ -27,7 +27,7 @@ public struct StrapiSchemaParser: Sendable {
         "media": "media",
         "relation": "relationHasOne",
         "uid": "shortText",
-        "password": "shortText",
+        "password": "shortText"
     ]
 
     public struct ParsedType: Sendable {

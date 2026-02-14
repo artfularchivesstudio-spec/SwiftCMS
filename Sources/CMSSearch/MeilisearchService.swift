@@ -132,7 +132,7 @@ public struct SearchModule: CmsModule {
         }
 
         // Subscribe to content events for document sync
-        app.eventBus.subscribe(ContentCreatedEvent.self) { event, context in
+        app.eventBus.subscribe(ContentCreatedEvent.self) { event, _ in
             let service = MeilisearchService(
                 baseURL: meiliURL, apiKey: meiliKey,
                 client: app.client
@@ -162,7 +162,7 @@ public struct SearchModule: CmsModule {
             }
         }
 
-        app.eventBus.subscribe(ContentDeletedEvent.self) { event, context in
+        app.eventBus.subscribe(ContentDeletedEvent.self) { event, _ in
             let service = MeilisearchService(
                 baseURL: meiliURL, apiKey: meiliKey,
                 client: app.client

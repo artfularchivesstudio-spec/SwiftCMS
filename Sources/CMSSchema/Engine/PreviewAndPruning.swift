@@ -107,5 +107,3 @@ public struct PreviewController: RouteCollection {
         return entry.toResponseDTO()
     }
 }
-
-

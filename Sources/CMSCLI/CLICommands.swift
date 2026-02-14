@@ -15,7 +15,7 @@ public struct CMSCommand: ParsableCommand {
             SeedCommand.self,
             GenerateSDKCommand.self,
             ImportStrapiCommand.self,
-            ExportCommand.self,
+            ExportCommand.self
         ],
         defaultSubcommand: ServeCommand.self
     )
@@ -274,8 +274,6 @@ struct ImportStrapiCommand: ParsableCommand {
         print("\nTo complete import, run with a live database connection.")
     }
 }
-
-
 
 // MARK: - Export
 

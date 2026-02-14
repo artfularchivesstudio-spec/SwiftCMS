@@ -55,7 +55,7 @@ final class SchemaGeneratorTests: XCTestCase {
             FieldDefinition(name: "title", type: "shortText", required: true),
             FieldDefinition(name: "body", type: "richText"),
             FieldDefinition(name: "count", type: "integer"),
-            FieldDefinition(name: "active", type: "boolean"),
+            FieldDefinition(name: "active", type: "boolean")
         ]
 
         let schema = SchemaGenerator.generate(from: fields)
