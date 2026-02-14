@@ -67,6 +67,22 @@ public struct AdminController: RouteCollection, Sendable {
         protected.get("bulk", "progress", ":operationId", use: bulkOperationProgress)
     }
 
+    // MARK: - Shared Context Helpers
+
+    /// Lightweight DTO for sidebar/command palette content type listing.
+    struct SidebarContentType: Encodable {
+        let slug: String
+        let displayName: String
+    }
+
+    /// Fetches all content types as lightweight DTOs for sidebar/command palette.
+    private func fetchSidebarTypes(on db: any Database) async throws -> [SidebarContentType] {
+        try await ContentTypeDefinition.query(on: db)
+            .sort(\.$name)
+            .all()
+            .map { SidebarContentType(slug: $0.slug, displayName: $0.displayName) }
+    }
+
     // MARK: - Dashboard
 
     @Sendable
@@ -80,12 +96,15 @@ public struct AdminController: RouteCollection, Sendable {
             .limit(10)
             .all()
 
+        let sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         struct DashboardContext: Encodable {
             let title: String
             let typeCount: Int
             let entryCount: Int
             let recentEntries: [ContentEntry]
             let activePage: String
+            let contentTypes: [SidebarContentType]
         }
 
         return try await req.view.render("admin/dashboard", DashboardContext(
@@ -93,7 +112,8 @@ public struct AdminController: RouteCollection, Sendable {
             typeCount: typeCount,
             entryCount: entryCount,
             recentEntries: recentEntries,
-            activePage: "dashboard"
+            activePage: "dashboard",
+            contentTypes: sidebarTypes
         ))
     }
 
@@ -105,15 +125,44 @@ public struct AdminController: RouteCollection, Sendable {
             .sort(\.$name)
             .all()
 
+        struct ContentTypeViewDTO: Codable {
+            let id: UUID
+            let displayName: String
+            let slug: String
+            let description: String?
+            let kind: String
+            let jsonSchema: AnyCodableValue
+            let fieldCount: Int
+        }
+
         struct Context: Encodable {
             let title: String
-            let contentTypes: [ContentTypeDefinition]
+            let contentTypes: [ContentTypeViewDTO]
             let activePage: String
+        }
+
+        let viewTypes = types.map { type in
+            let fieldCount: Int
+            if let properties = type.jsonSchema.dictionaryValue?["properties"]?.dictionaryValue {
+                fieldCount = properties.count
+            } else {
+                fieldCount = 0
+            }
+
+            return ContentTypeViewDTO(
+                id: type.id!,
+                displayName: type.displayName,
+                slug: type.slug,
+                description: type.description,
+                kind: type.kind,
+                jsonSchema: type.jsonSchema,
+                fieldCount: fieldCount
+            )
         }
 
         return try await req.view.render("admin/content/types", Context(
             title: "Content Types",
-            contentTypes: types,
+            contentTypes: viewTypes,
             activePage: "content-types"
         ))
     }
@@ -165,16 +214,20 @@ public struct AdminController: RouteCollection, Sendable {
 
     @Sendable
     func contentTypeBuilder(req: Request) async throws -> View {
+        let sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         struct Context: Encodable {
             let title: String
             let fieldTypes: [String]
             let activePage: String
+            let contentTypes: [SidebarContentType]
         }
 
         return try await req.view.render("admin/content/builder", Context(
             title: "New Content Type",
             fieldTypes: FieldTypeRegistry.allFieldTypes,
-            activePage: "content-types"
+            activePage: "content-types",
+            contentTypes: sidebarTypes
         ))
     }
 
@@ -206,6 +259,8 @@ public struct AdminController: RouteCollection, Sendable {
             .count()
 
         // Get user's role and permissions
+        let sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         if let user = req.auth.get(User.self) {
             try await user.$role.load(on: req.db)
             let permissions = try await user.role.$permissions.get(on: req.db)
@@ -218,6 +273,7 @@ public struct AdminController: RouteCollection, Sendable {
                 let totalPages: Int
                 let activePage: String
                 let userPermissions: [Permission]
+                let contentTypes: [SidebarContentType]
             }
 
             return try await req.view.render("admin/content/list", Context(
@@ -227,7 +283,8 @@ public struct AdminController: RouteCollection, Sendable {
                 page: page,
                 totalPages: max(1, Int(ceil(Double(total) / 25.0))),
                 activePage: "content",
-                userPermissions: permissions
+                userPermissions: permissions,
+                contentTypes: sidebarTypes
             ))
         } else {
             struct Context: Encodable {
@@ -237,6 +294,7 @@ public struct AdminController: RouteCollection, Sendable {
                 let page: Int
                 let totalPages: Int
                 let activePage: String
+                let contentTypes: [SidebarContentType]
             }
 
             return try await req.view.render("admin/content/list", Context(
@@ -245,7 +303,8 @@ public struct AdminController: RouteCollection, Sendable {
                 entries: entries,
                 page: page,
                 totalPages: max(1, Int(ceil(Double(total) / 25.0))),
-                activePage: "content"
+                activePage: "content",
+                contentTypes: sidebarTypes
             ))
         }
     }
@@ -268,18 +327,22 @@ public struct AdminController: RouteCollection, Sendable {
             nil
         }
 
+        let sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         struct Context: Encodable {
             let title: String
             let contentType: ContentTypeDefinition
             let entry: ContentEntry?
             let activePage: String
+            let contentTypes: [SidebarContentType]
         }
 
         return try await req.view.render("admin/content/edit", Context(
             title: entry != nil ? "Edit Entry" : "New Entry",
             contentType: typeDef,
             entry: entry,
-            activePage: "content"
+            activePage: "content",
+            contentTypes: sidebarTypes
         ))
     }
 
@@ -292,16 +355,20 @@ public struct AdminController: RouteCollection, Sendable {
             .limit(50)
             .all()
 
+        let sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         struct Context: Encodable {
             let title: String
             let files: [MediaFile]
             let activePage: String
+            let contentTypes: [SidebarContentType]
         }
 
         return try await req.view.render("admin/media/library", Context(
             title: "Media Library",
             files: files,
-            activePage: "media"
+            activePage: "media",
+            contentTypes: sidebarTypes
         ))
     }
 
@@ -314,16 +381,20 @@ public struct AdminController: RouteCollection, Sendable {
             .sort(\.$email)
             .all()
 
+        let sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         struct Context: Encodable {
             let title: String
             let users: [User]
             let activePage: String
+            let contentTypes: [SidebarContentType]
         }
 
         return try await req.view.render("admin/users/list", Context(
             title: "Users",
             users: users,
-            activePage: "users"
+            activePage: "users",
+            contentTypes: sidebarTypes
         ))
     }
 
@@ -335,16 +406,20 @@ public struct AdminController: RouteCollection, Sendable {
             .sort(\.$name)
             .all()
 
+        let sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         struct Context: Encodable {
             let title: String
             let webhooks: [Webhook]
             let activePage: String
+            let contentTypes: [SidebarContentType]
         }
 
         return try await req.view.render("admin/webhooks/list", Context(
             title: "Webhooks",
             webhooks: webhooks,
-            activePage: "webhooks"
+            activePage: "webhooks",
+            contentTypes: sidebarTypes
         ))
     }
 
@@ -352,13 +427,17 @@ public struct AdminController: RouteCollection, Sendable {
 
     @Sendable
     func settings(req: Request) async throws -> View {
+        let sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         struct Context: Encodable {
             let title: String
             let activePage: String
+            let contentTypes: [SidebarContentType]
         }
         return try await req.view.render("admin/settings/index", Context(
             title: "Settings",
-            activePage: "settings"
+            activePage: "settings",
+            contentTypes: sidebarTypes
         ))
     }
 
@@ -371,16 +450,20 @@ public struct AdminController: RouteCollection, Sendable {
             .limit(50)
             .all()
 
+        let sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         struct Context: Encodable {
             let title: String
             let entries: [DeadLetterEntry]
             let activePage: String
+            let contentTypes: [SidebarContentType]
         }
 
         return try await req.view.render("admin/system/dlq", Context(
             title: "Dead Letter Queue",
             entries: entries,
-            activePage: "system"
+            activePage: "system",
+            contentTypes: sidebarTypes
         ))
     }
 
@@ -714,11 +797,14 @@ public struct AdminController: RouteCollection, Sendable {
             nil
         }
 
+        let sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         struct Context: Encodable {
             let title: String
             let webhook: Webhook?
             let activePage: String
             let eventTypes: [String]
+            let contentTypes: [SidebarContentType]
         }
 
         return try await req.view.render("admin/webhooks/edit", Context(
@@ -729,7 +815,8 @@ public struct AdminController: RouteCollection, Sendable {
                 "content.created", "content.updated", "content.deleted",
                 "content.published", "content.stateChanged",
                 "schema.changed", "media.uploaded", "media.deleted"
-            ]
+            ],
+            contentTypes: sidebarTypes
         ))
     }
 
@@ -751,18 +838,22 @@ public struct AdminController: RouteCollection, Sendable {
             .limit(50)
             .all()
 
+        let  sidebarTypes = try await fetchSidebarTypes(on: req.db)
+
         struct Context: Encodable {
             let title: String
             let webhook: Webhook
             let deliveries: [WebhookDelivery]
             let activePage: String
+            let contentTypes: [SidebarContentType]
         }
 
         return try await req.view.render("admin/webhooks/deliveries", Context(
             title: "Deliveries - \(webhook.name)",
             webhook: webhook,
             deliveries: deliveries,
-            activePage: "webhooks"
+            activePage: "webhooks",
+            contentTypes: sidebarTypes
         ))
     }
 

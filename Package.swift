@@ -41,6 +41,8 @@ let package = Package(
         // GraphQL (Graphiti + Pioneer) — Wave 3
         .package(url: "https://github.com/GraphQLSwift/Graphiti.git", from: "1.15.1"),
         .package(url: "https://github.com/d-exclaimation/pioneer", from: "1.0.0"),
+        // Snapshot Testing
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.17.0"),
     ],
     targets: [
         // ─── Application ─────────────────────────────────────────────
@@ -96,7 +98,8 @@ let package = Package(
             dependencies: [
                 .product(name: "Vapor", package: "vapor"),
                 "CMSObjects",
-            ]
+            ],
+            exclude: ["Observability/README.md"]
         ),
 
         // ─── CMSEvents (EventBus) ───────────────────────────────────
@@ -178,6 +181,7 @@ let package = Package(
                 "CMSSchema",
                 "CMSObjects",
                 "CMSEvents",
+                "CMSMedia",
             ]
         ),
 
@@ -257,6 +261,29 @@ let package = Package(
             dependencies: [
                 .product(name: "XCTVapor", package: "vapor"),
                 "CMSAuth",
+            ]
+        ),
+        .testTarget(
+            name: "CMSApiTests",
+            dependencies: [
+                .product(name: "XCTVapor", package: "vapor"),
+                .product(name: "FluentSQLiteDriver", package: "fluent-sqlite-driver"),
+                "CMSApi",
+                "CMSSchema",
+                "CMSObjects",
+                "CMSAuth",
+            ],
+            exclude: ["GraphQLTests.md"]
+        ),
+        .testTarget(
+            name: "CMSAdminTests",
+            dependencies: [
+                .product(name: "XCTVapor", package: "vapor"),
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+                .product(name: "Leaf", package: "leaf"),
+                "CMSAdmin",
+                "CMSSchema",
+                "CMSObjects",
             ]
         ),
     ]

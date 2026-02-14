@@ -301,15 +301,28 @@
         #endfor
 
         #if(count(entries) == 0):
-        <div class="text-center py-12 text-base-content/50">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <p class="text-lg font-medium">No entries yet</p>
-            <p class="text-sm">Create your first entry to get started</p>
-            <a href="/admin/content/#(contentType.slug)/new" class="btn btn-primary btn-sm mt-4 min-h-[44px]">
-                Create Entry
-            </a>
+        <div class="bg-base-100 rounded-box shadow-sm p-16 text-center">
+            <div class="max-w-md mx-auto">
+                <div class="bg-primary/5 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-primary/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold mb-2">No entries yet</h3>
+                <p class="text-base-content/60 mb-6">
+                    Start building your content by creating the first entry for
+                    <span class="font-medium text-base-content">#(contentType.displayName)</span>.
+                </p>
+                <a href="/admin/content/#(contentType.slug)/new" class="btn btn-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                    </svg>
+                    Create First Entry
+                </a>
+                <p class="text-xs text-base-content/40 mt-4">
+                    Tip: Use <kbd class="kbd kbd-xs">Cmd+K</kbd> to quickly navigate with the command palette
+                </p>
+            </div>
         </div>
         #endif
     </div>
