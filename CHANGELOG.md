@@ -6,6 +6,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — Track 1: Content Experience (Complete)
+
+**Content Editor Heuristics (1.1)**
+- Smart field type detection from JSON Schema properties (type, format, maxLength, enum, x-field-type)
+- 14 widget types: Rich Text, Long Text, Short Text, Email, URL, Date, DateTime, Time, Select, Integer, Number, Toggle, JSON, List, Media, Relation, File
+- Builder schema markers: `format: 'richtext'`, `format: 'textarea'`, `x-field-type: 'media'`, `x-field-type: 'relation'`, `x-relation-type`
+
+**Complex Field Types (1.2)**
+- TipTap rich text editor with full toolbar (Bold, Italic, Strike, Code, H1-H3, Lists, Blockquote, Code Block, HR, Undo/Redo) and active state tracking
+- EasyMDE markdown editor for long text fields with image upload support
+- Single shared media picker modal (event-driven via CustomEvent dispatch)
+- Relation picker with debounced API search and badge display
+- JSON editor with collapsible view and live parse validation
+- Array editor with dynamic add/remove items
+- Flatpickr date/time picker (Date, DateTime, Time modes)
+- Toggle checkbox with Enabled/Disabled state label
+- Short text input with optional character counter (maxLength)
+- Number input with min/max hints
+- Select dropdown from enum values
+
+**Autosave Polish (1.3)**
+- Persistent status indicator: "Saving..." spinner, "Saved [time] ago" checkmark, "Unsaved changes" pulsing dot
+- Cmd+S integration via `window.saveContent` global
+- `beforeunload` warning prevents accidental navigation with unsaved changes
+- Toast feedback on save success/failure via global `window.addToast`
+- Validation error panel in sidebar with field-level error display
+
 ### Added — Admin UI Overhaul (Beyond Strapi)
 
 **Snapshot Test Infrastructure (Phase 1)**

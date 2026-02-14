@@ -87,14 +87,14 @@ Status key: DONE | IN PROGRESS | PENDING
 | Leaf + HTMX base layout | DONE (templates) | CMSAdmin, Resources/Views | W1 |
 | Tailwind CSS + DaisyUI styling | DONE (templates) | Resources/Views | W1 |
 | Dashboard | DONE (template) | CMSAdmin | W1 |
-| Content type builder (Alpine.js + SortableJS) | PENDING | CMSAdmin | W2 |
-| Dynamic content edit forms | PENDING | CMSAdmin | W2 |
+| Content type builder (Alpine.js + SortableJS) | DONE | CMSAdmin | W2 |
+| Dynamic content edit forms | DONE | CMSAdmin | W2 |
 | Content listing with search | PENDING | CMSAdmin | W2 |
 | Media browser (grid/list/upload) | PENDING | CMSAdmin | W2 |
 | User management pages | PENDING | CMSAdmin | W2 |
 | Role & permission management | PENDING | CMSAdmin | W2 |
 | Plugin admin pages | DONE (templates for SEO, Analytics) | Resources/Views | W1 |
-| TipTap rich text editor | PENDING | CMSAdmin | W3 |
+| TipTap rich text editor | DONE | CMSAdmin | W3 |
 | Version diff viewer | PENDING | CMSAdmin | W3 |
 | DLQ management page | DONE (template) | Resources/Views | W1 |
 | Activity feed | PENDING | CMSAdmin | W3 |

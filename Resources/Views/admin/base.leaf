@@ -581,6 +581,9 @@
                     this.commandPalette.filteredItems = this.commandPalette.allItems;
                     this.commandPalette.recentItems = this.loadRecentItems();
 
+                    // Expose addToast globally for child components (edit.leaf, etc.)
+                    window.addToast = (msg, type, dur) => this.addToast(msg, type, dur);
+
                     // Fuse.js fuzzy search instance
                     this._fuse = new Fuse(this.commandPalette.allItems, {
                         keys: ['title', 'category'],

@@ -1,236 +1,39 @@
 #extend("admin/base"):
 #export("content"):
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6" x-data="{
-    data: {},
-    errors: {},
-    isSaving: false,
-    lastSaved: null,
-    originalData: {},
-
-    init() {
-        // Set initial data from server
-        #if(entry):
-            this.data = #raw(entry.data);
-        #else:
-            this.data = {};
-        #endif
-
-        this.originalData = JSON.parse(JSON.stringify(this.data));
-        this.setupAutoSave();
-        this.setupValidation();
-        this.updateTimeAgo();
-        setInterval(() => this.updateTimeAgo(), 60000); // Update every minute
-    },
-
-    updateTimeAgo() {
-        if (this.lastSaved) {
-            const now = new Date();
-            const diff = Math.floor((now - this.lastSaved) / 1000);
-            if (diff < 60) {
-                this.timeAgo = 'just now';
-            } else if (diff < 3600) {
-                this.timeAgo = Math.floor(diff / 60) + 'm ago';
-            } else if (diff < 86400) {
-                this.timeAgo = Math.floor(diff / 3600) + 'h ago';
-            } else {
-                this.timeAgo = Math.floor(diff / 86400) + 'd ago';
-            }
-        }
-    },
-
-    getTimeAgo(date) {
-        if (!date) return '';
-        const now = new Date();
-        const diff = Math.floor((now - new Date(date)) / 1000);
-        if (diff < 60) {
-            return 'just now';
-        } else if (diff < 3600) {
-            return Math.floor(diff / 60) + 'm ago';
-        } else if (diff < 86400) {
-            return Math.floor(diff / 3600) + 'h ago';
-        } else {
-            return Math.floor(diff / 86400) + 'd ago';
-        }
-    },
-
-    setupAutoSave() {
-        // Auto-save draft every 30 seconds
-        setInterval(() => {
-            if (JSON.stringify(this.data) !== JSON.stringify(this.originalData)) {
-                this.saveDraft();
-            }
-        }, 30000);
-    },
-
-    setupValidation() {
-        // Validate field on blur
-        this.$watch('data', (newData) => {
-            this.validateAll();
-        });
-    },
-
-    validateAll() {
-        // Simple JSON Schema validation
-        const schema = #(contentType.jsonSchema);
-        this.errors = {};
-
-        if (schema.properties) {
-            Object.keys(schema.properties).forEach(fieldName => {
-                const field = schema.properties[fieldName];
-                const value = this.data[fieldName];
-
-                // Required field validation
-                if (schema.required?.includes(fieldName) && !value) {
-                    this.errors[fieldName] = 'This field is required';
-                }
-
-                // Type validation
-                if (value && field.type === 'number' && isNaN(Number(value))) {
-                    this.errors[fieldName] = 'Must be a valid number';
-                }
-
-                // Min/max validation
-                if (value && field.type === 'number') {
-                    const num = Number(value);
-                    if (field.minimum !== undefined && num < field.minimum) {
-                        this.errors[fieldName] = `Must be at least ${field.minimum}`;
-                    }
-                    if (field.maximum !== undefined && num > field.maximum) {
-                        this.errors[fieldName] = `Must be at most ${field.maximum}`;
-                    }
-                }
-
-                // Pattern validation for strings
-                if (value && field.type === 'string' && field.pattern) {
-                    const regex = new RegExp(field.pattern);
-                    if (!regex.test(value)) {
-                        this.errors[fieldName] = field.errorMessage || 'Invalid format';
-                    }
-                }
-            });
-        }
-
-        return Object.keys(this.errors).length === 0;
-    },
-
-    validateField(fieldName) {
-        const schema = #(contentType.jsonSchema);
-        const field = schema.properties?.[fieldName];
-        const value = this.data[fieldName];
-
-        delete this.errors[fieldName];
-
-        if (!field) return true;
-
-        // Required field validation
-        if (schema.required?.includes(fieldName) && !value && value !== false && value !== 0) {
-            this.errors[fieldName] = 'This field is required';
-            return false;
-        }
-
-        // Type validation
-        if (value !== null && value !== undefined) {
-            if (field.type === 'number' && isNaN(Number(value))) {
-                this.errors[fieldName] = 'Must be a valid number';
-                return false;
-            }
-
-            if (field.type === 'boolean' && typeof value !== 'boolean') {
-                const boolValue = String(value).toLowerCase();
-                if (!['true', 'false', '1', '0', 'yes', 'no'].includes(boolValue)) {
-                    this.errors[fieldName] = 'Must be true or false';
-                    return false;
-                }
-            }
-        }
-
-        // Min/max validation
-        if (value && field.type === 'number') {
-            const num = Number(value);
-            if (field.minimum !== undefined && num < field.minimum) {
-                this.errors[fieldName] = `Must be at least ${field.minimum}`;
-                return false;
-            }
-            if (field.maximum !== undefined && num > field.maximum) {
-                this.errors[fieldName] = `Must be at most ${field.maximum}`;
-                return false;
-            }
-        }
-
-        return true;
-    },
-
-    saveDraft() {
-        if (this.isSaving) return;
-
-        this.isSaving = true;
-        const method = '#if(entry):PUT#else:POST#endif';
-        const url = '/api/v1/#(contentType.slug)#if(entry):/#(entry.id)#endif';
-
-        fetch(url, {
-            method: method,
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                data: this.data,
-                status: document.getElementById('status').value
-            })
-        }).then(r => {
-            if (r.ok) {
-                this.lastSaved = new Date();
-                this.originalData = JSON.parse(JSON.stringify(this.data));
-            } else {
-                r.json().then(e => {
-                    console.error('Save failed:', e.reason);
-                });
-            }
-        }).catch(err => {
-            console.error('Auto-save error:', err);
-        }).finally(() => {
-            this.isSaving = false;
-        });
-    },
-
-    handleSubmit() {
-        if (!this.validateAll()) {
-            document.querySelector('.text-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return;
-        }
-
-        this.saveDraft();
-
-        // Wait a bit then redirect
-        setTimeout(() => {
-            window.location = '/admin/content/#(contentType.slug)';
-        }, 500);
-    }
-}">
+<div class="space-y-6" x-data="contentEditor()" x-init="initEditor()">
     <!-- Page Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-bold text-base-content">#(title)</h1>
             <p class="text-sm text-base-content/70 mt-1">#(contentType.displayName)</p>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
+            <!-- Save Status Indicator -->
             <div class="flex items-center gap-2 text-sm">
-                <span x-show="isSaving" class="flex items-center gap-1 text-warning">
+                <span x-show="isSaving" x-cloak class="flex items-center gap-1.5 text-warning">
                     <span class="loading loading-spinner loading-xs"></span> Saving...
                 </span>
-                <span x-show="!isSaving && lastSaved" x-cloak class="flex items-center gap-1 text-success">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span x-show="!isSaving && lastSaved" x-cloak class="flex items-center gap-1.5 text-success">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                     </svg>
-                    Saved <span x-text="getTimeAgo(lastSaved)"></span>
+                    Saved <span x-text="timeAgo"></span>
                 </span>
-                <span x-show="!isSaving && !lastSaved && JSON.stringify(data) !== JSON.stringify(originalData)" class="flex items-center gap-1 text-warning">
+                <span x-show="!isSaving && !lastSaved && hasChanges" x-cloak class="flex items-center gap-1.5 text-warning">
                     <span class="w-2 h-2 bg-warning rounded-full animate-pulse"></span>
                     Unsaved changes
                 </span>
             </div>
 
-            <a href="/admin/content/#(contentType.slug)" class="btn btn-ghost">Cancel</a>
-            <button class="btn btn-primary" @click="handleSubmit">
-                <span x-show="isSaving" class="loading loading-spinner loading-sm"></span>
+            <div class="divider divider-horizontal mx-0"></div>
+
+            <a href="/admin/content/#(contentType.slug)" class="btn btn-ghost btn-sm">Cancel</a>
+            <button class="btn btn-primary btn-sm" @click="handleSubmit()" :disabled="isSaving">
+                <span x-show="isSaving" class="loading loading-spinner loading-xs"></span>
+                <svg x-show="!isSaving" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
                 Save
             </button>
         </div>
@@ -238,375 +41,55 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Form Area -->
-        <div class="lg:col-span-2">
+        <div class="lg:col-span-2 space-y-6">
             <div class="bg-base-100 rounded-box shadow-sm p-6">
-                <div id="dynamic-fields">
-                    <!-- Parse JSON Schema and render fields -->
-                    <template x-data="{}" x-init="
-                        const schema = #(contentType.jsonSchema);
-                        const fieldOrder = #if(contentType.fieldOrder):#(contentType.fieldOrder)#else:[]#endif;
-                        const orderedFields = fieldOrder.length > 0 ? fieldOrder.map(f => f.toString()) : Object.keys(schema.properties || {});
-
-                        orderedFields.forEach(fieldName => {
-                            const field = schema.properties?.[fieldName];
-                            if (!field) return;
-
-                            // Create field container
-                            const container = document.createElement('div');
-                            container.className = 'form-control mb-6';
-                            container.setAttribute('x-data', `{ value: data.${fieldName} || '' }`);
-
-                            // Field label
-                            const label = document.createElement('label');
-                            label.className = 'label';
-                            label.innerHTML = `
-                                <span class=\"label-text font-semibold\">${field.title || fieldName}${schema.required?.includes(fieldName) ? ' *' : ''}</span>
-                            `;
-                            container.appendChild(label);
-
-                            // Field input based on type
-                            let inputElement;
-
-                            switch (field.type) {
-                                case 'string':
-                                    if (field.format === 'richtext' || field['x-field-type'] === 'richtext') {
-                                        // Rich text editor container
-                                        const editorContainer = document.createElement('div');
-                                        editorContainer.className = 'border border-base-300 rounded-lg p-3 min-h-48';
-                                        editorContainer.setAttribute('x-ref', `editor-${fieldName}`);
-                                        container.appendChild(editorContainer);
-
-                                        editorContainer.setAttribute('x-init', `
-                                            const editor = new TipTap.Editor({
-                                                element: $refs['editor-${fieldName}'],
-                                                extensions: [TipTapStarterKit],
-                                                content: data.${fieldName} || '',
-                                                onUpdate: ({ editor }) => {
-                                                    data.${fieldName} = editor.getHTML();
-                                                    validateField('${fieldName}');
-                                                }
-                                            });
-                                        `);
-                                        inputElement = null;
-                                    } else if (field.format === 'date' || field.format === 'date-time' || field.format === 'datetime') {
-                                        inputElement = document.createElement('input');
-                                        inputElement.type = 'text';
-                                        inputElement.className = 'input input-bordered';
-                                        inputElement.setAttribute('x-model', 'value');
-                                        inputElement.setAttribute('@change', `data.${fieldName} = value; validateField('${fieldName}')`);
-                                        inputElement.setAttribute('@blur', `validateField('${fieldName}')`);
-                                        inputElement.setAttribute('x-init', `
-                                            flatpickr($el, {
-                                                enableTime: ${field.format !== 'date'},
-                                                dateFormat: '${field.format === 'date' ? 'Y-m-d' : 'Y-m-d H:i'}',
-                                                onChange: function(selectedDates, dateStr) {
-                                                    value = dateStr;
-                                                    data.${fieldName} = dateStr;
-                                                    validateField('${fieldName}');
-                                                }
-                                            });
-                                        `);
-                                    } else if (field.format === 'email') {
-                                        inputElement = document.createElement('input');
-                                        inputElement.type = 'email';
-                                        inputElement.className = 'input input-bordered';
-                                        inputElement.placeholder = 'user@example.com';
-                                        inputElement.setAttribute('x-model', 'value');
-                                        inputElement.setAttribute('@input', `data.${fieldName} = value; validateField('${fieldName}')`);
-                                        inputElement.setAttribute('@blur', `validateField('${fieldName}')`);
-                                    } else if (field.enum) {
-                                        inputElement = document.createElement('select');
-                                        inputElement.className = 'select select-bordered w-full';
-                                        inputElement.setAttribute('x-model', 'value');
-                                        inputElement.setAttribute('@change', `data.${fieldName} = value; validateField('${fieldName}')`);
-                                        const emptyOpt = document.createElement('option');
-                                        emptyOpt.value = '';
-                                        emptyOpt.textContent = 'Select...';
-                                        inputElement.appendChild(emptyOpt);
-                                        field.enum.forEach(option => {
-                                            const opt = document.createElement('option');
-                                            opt.value = option;
-                                            opt.textContent = field.enumNames?.[field.enum.indexOf(option)] || option;
-                                            inputElement.appendChild(opt);
-                                        });
-                                    } else if (field.format === 'file' || field.format === 'image') {
-                                        const fileContainer = document.createElement('div');
-                                        fileContainer.className = 'space-y-2';
-                                        const fileInput = document.createElement('input');
-                                        fileInput.type = 'file';
-                                        fileInput.className = 'file-input file-input-bordered w-full';
-                                        fileInput.setAttribute('@change', `
-                                            const file = $event.target.files[0];
-                                            if (file) {
-                                                const reader = new FileReader();
-                                                reader.onload = (e) => {
-                                                    data.${fieldName} = e.target.result;
-                                                    validateField('${fieldName}');
-                                                };
-                                                reader.readAsDataURL(file);
-                                            }
-                                        `);
-                                        fileContainer.appendChild(fileInput);
-                                        if (field.format === 'image') {
-                                            const preview = document.createElement('img');
-                                            preview.className = 'w-32 h-32 object-cover rounded-lg mt-2';
-                                            preview.setAttribute('x-show', `data.${fieldName}`);
-                                            preview.setAttribute(':src', `data.${fieldName}`);
-                                            preview.alt = 'Preview';
-                                            fileContainer.appendChild(preview);
-                                        }
-                                        container.appendChild(fileContainer);
-                                        inputElement = null;
-                                    } else if (field.format === 'uuid' && field['x-field-type'] === 'media') {
-                                        // Media picker field
-                                        const mediaContainer = document.createElement('div');
-                                        mediaContainer.className = 'flex items-center gap-3';
-                                        mediaContainer.setAttribute('data-field-type', 'media');
-                                        mediaContainer.setAttribute('data-field-name', fieldName);
-                                        mediaContainer.innerHTML = `
-                                            <img x-show="data.${fieldName}" :src="'/api/v1/media/' + data.${fieldName} + '/thumbnail'"
-                                                 class="w-16 h-16 object-cover rounded-lg border border-base-300"
-                                                 onerror="this.style.display='none'">
-                                            <div class="flex gap-2">
-                                                <button type="button" class="btn btn-outline btn-sm"
-                                                        @click="document.getElementById('media-modal-${fieldName}').showModal()">
-                                                    Select Media
-                                                </button>
-                                                <button type="button" x-show="data.${fieldName}"
-                                                        @click="data.${fieldName} = null"
-                                                        class="btn btn-ghost btn-xs text-error">Remove</button>
-                                            </div>
-                                        `;
-                                        container.appendChild(mediaContainer);
-                                        inputElement = null;
-                                    } else if (field.format === 'uuid' && field['x-field-type'] === 'relation') {
-                                        // Relation picker with search
-                                        const relContainer = document.createElement('div');
-                                        relContainer.className = 'space-y-2';
-                                        relContainer.setAttribute('x-data', `{
-                                            relSearch: '',
-                                            relResults: [],
-                                            relSelected: data.${fieldName} || null,
-                                            async fetchRelated(q) {
-                                                if (!q || q.length < 2) { this.relResults = []; return; }
-                                                try {
-                                                    const res = await fetch('/api/v1/${field['x-relation-type'] || 'entries'}?q=' + encodeURIComponent(q) + '&limit=10');
-                                                    const json = await res.json();
-                                                    this.relResults = json.data || [];
-                                                } catch(e) { this.relResults = []; }
-                                            }
-                                        }`);
-                                        relContainer.innerHTML = `
-                                            <input type="text" x-model="relSearch" placeholder="Search related entries..."
-                                                   class="input input-bordered w-full input-sm"
-                                                   @input.debounce.300ms="fetchRelated(relSearch)">
-                                            <div x-show="relResults.length > 0"
-                                                 class="bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                                <template x-for="item in relResults" :key="item.id">
-                                                    <div @click="relSelected = item.id; data.${fieldName} = item.id; relResults = []; relSearch = item.title || item.id"
-                                                         class="p-2 hover:bg-base-200 cursor-pointer text-sm" x-text="item.title || item.id"></div>
-                                                </template>
-                                            </div>
-                                            <div x-show="relSelected" class="text-xs text-base-content/60">
-                                                Selected: <span x-text="relSelected"></span>
-                                                <button type="button" @click="relSelected = null; data.${fieldName} = null; relSearch = ''"
-                                                        class="ml-2 text-error hover:underline">Clear</button>
-                                            </div>
-                                        `;
-                                        container.appendChild(relContainer);
-                                        inputElement = null;
-                                    } else if (field.format === 'textarea' || (!field.maxLength && !field.format && !field.enum)) {
-                                        // Long text — string with no constraints defaults to textarea
-                                        inputElement = document.createElement('textarea');
-                                        inputElement.className = 'textarea textarea-bordered h-32';
-                                        inputElement.setAttribute('x-model', 'value');
-                                        inputElement.setAttribute('@input', `data.${fieldName} = value; validateField('${fieldName}')`);
-                                        inputElement.setAttribute('@blur', `validateField('${fieldName}')`);
-                                        const charCount = document.createElement('div');
-                                        charCount.className = 'text-xs text-base-content/60 mt-1';
-                                        charCount.setAttribute('x-text', `value.length + ' characters'`);
-                                        container.appendChild(charCount);
-                                    } else {
-                                        // Short text input with optional character counter
-                                        inputElement = document.createElement('input');
-                                        inputElement.type = 'text';
-                                        inputElement.className = 'input input-bordered';
-                                        inputElement.setAttribute('x-model', 'value');
-                                        inputElement.setAttribute('@input', `data.${fieldName} = value; validateField('${fieldName}')`);
-                                        inputElement.setAttribute('@blur', `validateField('${fieldName}')`);
-                                        if (field.maxLength) {
-                                            inputElement.maxLength = field.maxLength;
-                                            const counter = document.createElement('div');
-                                            counter.className = 'text-xs text-base-content/60 mt-1';
-                                            counter.setAttribute('x-text', `value.length + ' / ${field.maxLength}'`);
-                                            container.appendChild(counter);
-                                        }
-                                    }
-                                    break;
-                                case 'object':
-                                    // JSON editor with collapsible view
-                                    const jsonContainer = document.createElement('div');
-                                    jsonContainer.className = 'collapse collapse-arrow bg-base-200 rounded-lg';
-                                    jsonContainer.setAttribute('x-data', `{
-                                        jsonString: JSON.stringify(data.${fieldName} || {}, null, 2),
-                                        jsonError: ''
-                                    }`);
-                                    jsonContainer.innerHTML = `
-                                        <input type="checkbox" checked>
-                                        <div class="collapse-title font-medium flex items-center gap-2">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
-                                            </svg>
-                                            JSON Editor
-                                            <span x-show="jsonError" class="text-xs text-error" x-text="jsonError"></span>
-                                        </div>
-                                        <div class="collapse-content">
-                                            <textarea class="textarea textarea-bordered w-full font-mono text-sm bg-base-100"
-                                                      rows="8" x-model="jsonString"
-                                                      @input="try { data.${fieldName} = JSON.parse(jsonString); jsonError = ''; validateField('${fieldName}'); } catch(e) { jsonError = 'Invalid JSON: ' + e.message; }"></textarea>
-                                        </div>
-                                    `;
-                                    container.appendChild(jsonContainer);
-                                    inputElement = null;
-                                    break;
-                                case 'number':
-                                    inputElement = document.createElement('input');
-                                    inputElement.type = 'number';
-                                    inputElement.className = 'input input-bordered';
-                                    inputElement.setAttribute('x-model', 'value');
-                                    inputElement.setAttribute('@input', `data.${fieldName} = Number(value); validateField('${fieldName}')`);
-                                    inputElement.setAttribute('@blur', `validateField('${fieldName}')`);
-
-                                    if (field.minimum !== undefined) inputElement.min = field.minimum;
-                                    if (field.maximum !== undefined) inputElement.max = field.maximum;
-                                    if (field.step !== undefined) inputElement.step = field.step;
-                                    break;
-                                case 'boolean':
-                                    // Toggle switch
-                                    const toggleContainer = document.createElement('div');
-                                    toggleContainer.className = 'form-control';
-
-                                    const toggleLabel = document.createElement('label');
-                                    toggleLabel.className = 'cursor-pointer label justify-start gap-3';
-
-                                    const toggleInput = document.createElement('input');
-                                    toggleInput.type = 'checkbox';
-                                    toggleInput.className = 'toggle toggle-primary';
-                                    toggleInput.setAttribute('x-model', `data.${fieldName}`);
-                                    toggleInput.setAttribute('@change', `validateField('${fieldName}')`);
-
-                                    const toggleText = document.createElement('span');
-                                    toggleText.className = 'label-text';
-                                    toggleText.textContent = field.title || fieldName;
-
-                                    toggleLabel.appendChild(toggleInput);
-                                    toggleLabel.appendChild(toggleText);
-                                    toggleContainer.appendChild(toggleLabel);
-
-                                    container.appendChild(toggleContainer);
-                                    inputElement = null; // Skip adding standard input
-                                    break;
-                                case 'array':
-                                    // Array of items (handle nested fields)
-                                    const arrayContainer = document.createElement('div');
-                                    arrayContainer.className = 'space-y-2';
-                                    arrayContainer.setAttribute('x-data', `{ items: data.${fieldName} || [] }`);
-
-                                    const arrayList = document.createElement('div');
-                                    arrayList.setAttribute('x-for', '(item, index) in items');
-                                    arrayList.setAttribute(':key', 'index');
-                                    arrayList.innerHTML = `
-                                        <div class=\"flex gap-2 items-center p-2 bg-base-200 rounded\">
-                                            <input type=\"text\" x-model=\"items[index]\" class=\"input input-sm input-bordered flex-1\"
-                                                   @input=\"data.${fieldName} = items; validateField('${fieldName}')\">
-                                            <button @click=\"items.splice(index, 1); data.${fieldName} = items\"
-                                                    class=\"btn btn-error btn-sm btn-outline\">Remove</button>
-                                        </div>
-                                    `;
-
-                                    arrayContainer.appendChild(arrayList);
-
-                                    const addButton = document.createElement('button');
-                                    addButton.className = 'btn btn-outline btn-sm';
-                                    addButton.textContent = 'Add Item';
-                                    addButton.setAttribute('@click', `items.push(''); data.${fieldName} = items`);
-
-                                    arrayContainer.appendChild(addButton);
-                                    container.appendChild(arrayContainer);
-                                    inputElement = null; // Skip adding standard input
-                                    break;
-                                default:
-                                    inputElement = document.createElement('input');
-                                    inputElement.type = 'text';
-                                    inputElement.className = 'input input-bordered';
-                                    inputElement.setAttribute('x-model', 'value');
-                                    inputElement.setAttribute('@input', `data.${fieldName} = value`);
-                            }
-
-                            if (inputElement) {
-                                container.appendChild(inputElement);
-                            }
-
-                            // Help text
-                            if (field.description) {
-                                const helpText = document.createElement('div');
-                                helpText.className = 'text-xs text-base-content/60 mt-1';
-                                helpText.textContent = field.description;
-                                container.appendChild(helpText);
-                            }
-
-                            // Error message
-                            const errorDiv = document.createElement('div');
-                            errorDiv.className = 'text-xs text-error mt-1';
-                            errorDiv.setAttribute('x-show', `errors['${fieldName}']`);
-                            errorDiv.setAttribute('x-text', `errors['${fieldName}']`);
-                            container.appendChild(errorDiv);
-
-                            // Add to the form
-                            document.getElementById('dynamic-fields').appendChild(container);
-                        });
-                    ">
-                </template>
-                </div>
+                <div id="dynamic-fields" class="space-y-6"></div>
             </div>
         </div>
 
         <!-- Sidebar -->
-        <div class="lg:col-span-1">
-            <div class="bg-base-100 rounded-box shadow-sm p-6 mb-6">
-                <h3 class="font-semibold mb-4">Status</h3>
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Status Card -->
+            <div class="bg-base-100 rounded-box shadow-sm p-6">
+                <h3 class="font-semibold mb-4 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Publishing
+                </h3>
 
                 <div class="form-control mb-4">
-                    <label class="label"><span class="label-text font-semibold">Publish Status</span></label>
-                    <select class="select select-bordered w-full" id="status">
+                    <label class="label"><span class="label-text font-medium">Status</span></label>
+                    <select class="select select-bordered select-sm w-full" id="status" x-model="publishStatus">
                         <option value="draft" #if(entry.status == "draft"):selected#endif>Draft</option>
-                        <option value="review" #if(entry.status == "review"):selected#endif>Review</option>
+                        <option value="review" #if(entry.status == "review"):selected#endif>In Review</option>
                         <option value="published" #if(entry.status == "published"):selected#endif>Published</option>
                     </select>
                 </div>
 
                 <div class="form-control mb-4">
-                    <label class="label"><span class="label-text font-semibold">Slug</span></label>
+                    <label class="label"><span class="label-text font-medium">Entry ID</span></label>
                     <input type="text"
-                           class="input input-bordered w-full"
+                           class="input input-bordered input-sm w-full font-mono text-xs"
                            value="#if(entry):#(entry.id)#endif"
                            readonly>
-                    <div class="text-xs text-base-content/60 mt-1">Auto-generated from entry ID</div>
                 </div>
+
+                <div class="divider my-2"></div>
 
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
-                        <span class="text-base-content/70">Created:</span>
-                        <span>#(entry.createdAt?.iso8601 ?? '—')</span>
+                        <span class="text-base-content/60">Created</span>
+                        <span class="font-medium">#(entry.createdAt?.iso8601 ?? 'Not yet')</span>
                     </div>
                     <div class="flex justify-between">
-                        <span class="text-base-content/70">Modified:</span>
-                        <span x-text="lastSaved ? 'Just now' : '#(entry.updatedAt?.iso8601 ?? '—')'"></span>
+                        <span class="text-base-content/60">Modified</span>
+                        <span class="font-medium" x-text="lastSaved ? timeAgo : '#(entry.updatedAt?.iso8601 ?? 'Not yet')'"></span>
                     </div>
                     #if(entry.createdBy):
                     <div class="flex justify-between">
-                        <span class="text-base-content/70">Author:</span>
-                        <span>#(entry.createdBy)</span>
+                        <span class="text-base-content/60">Author</span>
+                        <span class="font-medium">#(entry.createdBy)</span>
                     </div>
                     #endif
                 </div>
@@ -614,133 +97,1361 @@
 
             <!-- Quick Actions -->
             <div class="bg-base-100 rounded-box shadow-sm p-6">
-                <h3 class="font-semibold mb-4">Quick Actions</h3>
+                <h3 class="font-semibold mb-4 flex items-center gap-2">
+                    <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    Actions
+                </h3>
                 <div class="space-y-2">
                     #if(entry):
                     <a href="/admin/content/#(contentType.slug)/#(entry.id)/versions"
-                       class="btn btn-outline btn-sm w-full">View History</a>
+                       class="btn btn-outline btn-sm w-full justify-start">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        View History
+                    </a>
                     #endif
-
                     <a href="/admin/content/#(contentType.slug)"
-                       class="btn btn-outline btn-sm w-full">Back to List</a>
+                       class="btn btn-outline btn-sm w-full justify-start">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                        </svg>
+                        Back to List
+                    </a>
                 </div>
+            </div>
+
+            <!-- Validation Errors -->
+            <div x-show="Object.keys(errors).length > 0" x-cloak
+                 class="bg-error/10 border border-error/20 rounded-box p-4">
+                <h3 class="font-semibold text-error mb-2 flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    Validation Errors
+                </h3>
+                <ul class="space-y-1">
+                    <template x-for="(msg, field) in errors" :key="field">
+                        <li class="text-xs text-error flex items-center gap-1">
+                            <span class="font-medium" x-text="field + ':'"></span>
+                            <span x-text="msg"></span>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+
+            <!-- Keyboard Hint -->
+            <div class="text-xs text-base-content/40 text-center">
+                <kbd class="kbd kbd-xs">Cmd</kbd>+<kbd class="kbd kbd-xs">S</kbd> to save
             </div>
         </div>
     </div>
 </div>
 
-<!-- Media Picker Modal (Dynamic, will be cloned per field) -->
-<template id="media-picker-modal-template">
-    <dialog class="modal" x-data="{
-        selectedMedia: null,
-        searchQuery: '',
-        loading: false,
-        async loadMedia() {
-            this.loading = true;
-            try {
-                const url = this.searchQuery
-                    ? `/api/v1/media?q=${encodeURIComponent(this.searchQuery)}&limit=20`
-                    : `/api/v1/media?limit=20`;
-                const res = await fetch(url);
-                const json = await res.json();
-                this.mediaItems = json.data || [];
-            } catch(e) {
-                this.mediaItems = [];
-            } finally {
-                this.loading = false;
-            }
-        },
-        selectMedia(id, url, fieldName) {
-            // Update the parent form's field with the selected media ID
-            window.dispatchEvent(new CustomEvent('media-selected', {
-                detail: { id, url, fieldName }
-            }));
-            document.getElementById(`media-modal-${fieldName}`).close();
+<!-- Media Picker Modal (Single shared instance) -->
+<dialog id="media-picker-modal" class="modal" x-data="{
+    mediaItems: [],
+    searchQuery: '',
+    loading: false,
+    isUploading: false,
+    targetField: null,
+    async loadMedia() {
+        this.loading = true;
+        try {
+            const url = this.searchQuery
+                ? '/api/v1/media?q=' + encodeURIComponent(this.searchQuery) + '&limit=24'
+                : '/api/v1/media?limit=24';
+            const res = await fetch(url);
+            const json = await res.json();
+            this.mediaItems = json.data || [];
+        } catch(e) {
+            this.mediaItems = [];
+        } finally {
+            this.loading = false;
         }
-    }"
-    x-init="loadMedia()"
-    @media-selected.window="selectMedia($event.detail.id, $event.detail.url, fieldName)">
-        <div class="modal-box max-w-4xl">
-            <h3 class="font-bold text-lg mb-4">Select Media</h3>
+    },
+    async uploadFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        this.isUploading = true;
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/admin/media/upload/json', {
+                method: 'POST',
+                body: formData
+            });
+            if (res.ok) {
+                await this.loadMedia();
+                if (window.addToast) window.addToast('Media uploaded', 'success');
+            } else {
+                if (window.addToast) window.addToast('Upload failed', 'error');
+            }
+        } catch(err) {
+            if (window.addToast) window.addToast('Upload error', 'error');
+        } finally {
+            this.isUploading = false;
+            e.target.value = '';
+        }
+    },
+    selectMedia(id) {
+        window.dispatchEvent(new CustomEvent('media-selected', {
+            detail: { id, fieldName: this.targetField }
+        }));
+        this.$el.close();
+    },
+    open(fieldName) {
+        this.targetField = fieldName;
+        this.searchQuery = '';
+        this.loadMedia();
+        this.$el.showModal();
+    }
+}" @open-media-picker.window="open($event.detail.fieldName)">
+    <div class="modal-box max-w-4xl">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-bold text-lg">Select Media</h3>
+            <button class="btn btn-sm btn-circle btn-ghost" @click="$el.closest('dialog').close()">X</button>
+        </div>
 
-            <!-- Search -->
-            <div class="form-control mb-4">
+        <!-- Search & Upload -->
+        <div class="flex gap-3 mb-4">
+            <div class="form-control flex-1">
                 <input type="text"
                        x-model="searchQuery"
                        @input.debounce.300ms="loadMedia()"
                        placeholder="Search media..."
-                       class="input input-bordered">
+                       class="input input-bordered input-sm w-full">
             </div>
-
-            <!-- Media Grid -->
-            <div x-show="loading" class="flex justify-center p-8">
-                <span class="loading loading-spinner loading-lg"></span>
-            </div>
-
-            <div x-show="!loading" class="grid grid-cols-4 gap-4 max-h-96 overflow-y-auto">
-                <template x-for="item in mediaItems" :key="item.id">
-                    <div @click="selectMedia(item.id, item.url, fieldName)"
-                         class="cursor-pointer group relative aspect-square bg-base-200 rounded-lg overflow-hidden hover:ring-2 hover:ring-primary">
-                        <img :src="item.url || '/api/v1/media/' + item.id + '/thumbnail'"
-                             :alt="item.filename || item.id"
-                             class="w-full h-full object-cover">
-                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <span class="text-white text-sm">Select</span>
-                        </div>
-                    </div>
-                </template>
-                <div x-show="mediaItems?.length === 0" class="col-span-4 text-center text-base-content/60 py-8">
-                    No media found
-                </div>
-            </div>
-
-            <div class="modal-action">
-                <button type="button" class="btn" @click="document.getElementById(`media-modal-${fieldName}`).close()">
-                    Cancel
+            <div>
+                <input type="file" class="hidden" x-ref="fileInput" @change="uploadFile($event)">
+                <button class="btn btn-primary btn-sm" @click="$refs.fileInput.click()" :disabled="isUploading">
+                    <span x-show="isUploading" class="loading loading-spinner loading-xs"></span>
+                    <svg x-show="!isUploading" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                    </svg>
+                    Upload
                 </button>
             </div>
         </div>
-    </dialog>
-</template>
 
-<script>
-// Initialize media picker modals for each media field
-document.addEventListener('alpine:init', () => {
-    // Clone the template for each media field found in the form
-    const template = document.getElementById('media-picker-modal-template');
-    if (template) {
-        const mediaFields = document.querySelectorAll('[data-field-type="media"]');
-        mediaFields.forEach(field => {
-            const fieldName = field.getAttribute('data-field-name');
-            if (fieldName && !document.getElementById(`media-modal-${fieldName}`)) {
-                const clone = template.content.cloneNode(true);
-                const dialog = clone.querySelector('dialog');
-                dialog.id = `media-modal-${fieldName}`;
-                document.body.appendChild(clone);
-            }
-        });
-    }
-});
-</script>
+        <!-- Loading -->
+        <div x-show="loading" class="flex justify-center p-8">
+            <span class="loading loading-spinner loading-lg"></span>
+        </div>
+
+        <!-- Media Grid -->
+        <div x-show="!loading" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3 max-h-96 overflow-y-auto p-1">
+            <template x-for="item in mediaItems" :key="item.id">
+                <div @click="selectMedia(item.id)"
+                     class="cursor-pointer group relative aspect-square bg-base-200 rounded-lg overflow-hidden hover:ring-2 hover:ring-primary transition-all">
+                    <img :src="item.url || '/api/v1/media/' + item.id + '/thumbnail'"
+                         :alt="item.filename || item.id"
+                         class="w-full h-full object-cover"
+                         loading="lazy">
+                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-1 truncate opacity-0 group-hover:opacity-100 transition-opacity"
+                         x-text="item.filename || item.id"></div>
+                </div>
+            </template>
+            <div x-show="mediaItems?.length === 0" class="col-span-full text-center text-base-content/50 py-12">
+                <svg class="w-12 h-12 mx-auto mb-2 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                No media found. Upload something above.
+            </div>
+        </div>
+
+        <div class="modal-action">
+            <button type="button" class="btn btn-sm" @click="$el.closest('dialog').close()">Cancel</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
 
 <!-- External Libraries -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://unpkg.com/@tiptap/core@2.0.3/dist/tiptap-core.umd.js"></script>
-<script src="https://unpkg.com/@tiptap/starter-kit@2.0.3/dist/tiptap-starter-kit.umd.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
 
 <style>
+    /* TipTap rich text editor styles */
+    .tiptap-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        padding: 8px;
+        border-bottom: 1px solid oklch(var(--bc) / 0.15);
+        background: oklch(var(--b2));
+        border-radius: 8px 8px 0 0;
+    }
+    .tiptap-toolbar button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        color: oklch(var(--bc) / 0.7);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        font-size: 14px;
+    }
+    .tiptap-toolbar button:hover {
+        background: oklch(var(--bc) / 0.1);
+        color: oklch(var(--bc));
+    }
+    .tiptap-toolbar button.is-active {
+        background: oklch(var(--p) / 0.15);
+        color: oklch(var(--p));
+    }
+    .tiptap-toolbar .separator {
+        width: 1px;
+        height: 24px;
+        background: oklch(var(--bc) / 0.1);
+        margin: 4px 4px;
+        align-self: center;
+    }
     .ProseMirror {
         min-height: 200px;
+        padding: 16px;
         outline: none;
+        font-size: 15px;
+        line-height: 1.7;
     }
-    .ProseMirror p {
-        margin-bottom: 0.5em;
+    .ProseMirror p { margin-bottom: 0.75em; }
+    .ProseMirror h1 { font-size: 1.75em; font-weight: 700; margin: 1em 0 0.5em; }
+    .ProseMirror h2 { font-size: 1.5em; font-weight: 600; margin: 0.8em 0 0.4em; }
+    .ProseMirror h3 { font-size: 1.25em; font-weight: 600; margin: 0.6em 0 0.3em; }
+    .ProseMirror ul, .ProseMirror ol { padding-left: 1.5em; margin-bottom: 0.75em; }
+    .ProseMirror ul { list-style-type: disc; }
+    .ProseMirror ol { list-style-type: decimal; }
+    .ProseMirror li { margin-bottom: 0.25em; }
+    .ProseMirror blockquote {
+        border-left: 3px solid oklch(var(--p) / 0.4);
+        padding-left: 1em;
+        margin-left: 0;
+        color: oklch(var(--bc) / 0.7);
+        font-style: italic;
     }
-    .ProseMirror h1, .ProseMirror h2, .ProseMirror h3 {
-        margin-top: 0.5em;
-        margin-bottom: 0.5em;
+    .ProseMirror code {
+        background: oklch(var(--bc) / 0.08);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.9em;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .ProseMirror pre {
+        background: oklch(var(--bc) / 0.05);
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 0.75em;
+        overflow-x: auto;
+    }
+    .ProseMirror pre code {
+        background: none;
+        padding: 0;
+        border-radius: 0;
+    }
+    .ProseMirror hr {
+        border: none;
+        border-top: 2px solid oklch(var(--bc) / 0.1);
+        margin: 1.5em 0;
+    }
+    .ProseMirror a {
+        color: oklch(var(--p));
+        text-decoration: underline;
+        cursor: pointer;
+    }
+    .ProseMirror p.is-editor-empty:first-child::before {
+        content: attr(data-placeholder);
+        float: left;
+        color: oklch(var(--bc) / 0.3);
+        pointer-events: none;
+        height: 0;
+    }
+
+    /* EasyMDE dark mode support */
+    [data-theme="dark"] .EasyMDEContainer .CodeMirror {
+        background-color: oklch(var(--b1));
+        color: oklch(var(--bc));
+        border-color: oklch(var(--bc) / 0.2);
+    }
+    [data-theme="dark"] .EasyMDEContainer .editor-toolbar {
+        border-color: oklch(var(--bc) / 0.15);
+    }
+    [data-theme="dark"] .EasyMDEContainer .editor-toolbar button {
+        color: oklch(var(--bc) / 0.7);
+    }
+    [data-theme="dark"] .EasyMDEContainer .editor-toolbar button:hover {
+        background: oklch(var(--bc) / 0.1);
+    }
+    [data-theme="dark"] .EasyMDEContainer .editor-toolbar button.active {
+        background: oklch(var(--p) / 0.15);
+    }
+
+    /* Field transition */
+    .field-enter { animation: fieldFadeIn 0.2s ease-out; }
+    @keyframes fieldFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
     }
 </style>
+
+<script>
+function contentEditor() {
+    return {
+        data: {},
+        errors: {},
+        isSaving: false,
+        lastSaved: null,
+        timeAgo: '',
+        originalData: {},
+        hasChanges: false,
+        publishStatus: '#if(entry.status):#(entry.status)#else:draft#endif',
+        _editors: {},
+        _schema: null,
+
+        initEditor() {
+            // Load data
+            #if(entry):
+                this.data = #raw(entry.data);
+            #else:
+                this.data = {};
+            #endif
+
+            this.originalData = JSON.parse(JSON.stringify(this.data));
+            this._schema = #(contentType.jsonSchema);
+
+            // Watch for changes
+            this.$watch('data', () => {
+                this.hasChanges = JSON.stringify(this.data) !== JSON.stringify(this.originalData);
+            });
+
+            // Build fields
+            this.$nextTick(() => this.buildFields());
+
+            // Auto-save every 30s
+            setInterval(() => {
+                if (this.hasChanges) this.saveDraft();
+            }, 30000);
+
+            // Time ago updater
+            setInterval(() => this.updateTimeAgo(), 60000);
+
+            // Cmd+S save integration
+            window.saveContent = () => this.saveDraft();
+
+            // Listen for media selection
+            window.addEventListener('media-selected', (e) => {
+                const { id, fieldName } = e.detail;
+                if (fieldName) {
+                    this.data[fieldName] = id;
+                    this.data = { ...this.data }; // trigger reactivity
+                    // Update thumbnail preview
+                    const preview = document.getElementById('media-preview-' + fieldName);
+                    if (preview) {
+                        preview.src = '/api/v1/media/' + id + '/thumbnail';
+                        preview.style.display = 'block';
+                    }
+                    const emptyState = document.getElementById('media-empty-' + fieldName);
+                    if (emptyState) emptyState.style.display = 'none';
+                }
+            });
+
+            // Warn before leaving with unsaved changes
+            window.addEventListener('beforeunload', (e) => {
+                if (this.hasChanges) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
+        },
+
+        updateTimeAgo() {
+            if (!this.lastSaved) return;
+            const diff = Math.floor((new Date() - this.lastSaved) / 1000);
+            if (diff < 60) this.timeAgo = 'just now';
+            else if (diff < 3600) this.timeAgo = Math.floor(diff / 60) + 'm ago';
+            else if (diff < 86400) this.timeAgo = Math.floor(diff / 3600) + 'h ago';
+            else this.timeAgo = Math.floor(diff / 86400) + 'd ago';
+        },
+
+        validateAll() {
+            const schema = this._schema;
+            this.errors = {};
+
+            if (!schema?.properties) return true;
+
+            Object.keys(schema.properties).forEach(fieldName => {
+                const field = schema.properties[fieldName];
+                const value = this.data[fieldName];
+
+                // Required
+                if (schema.required?.includes(fieldName) && !value && value !== false && value !== 0) {
+                    this.errors[fieldName] = 'Required';
+                }
+
+                // Number validation
+                if (value != null && (field.type === 'number' || field.type === 'integer')) {
+                    if (isNaN(Number(value))) {
+                        this.errors[fieldName] = 'Must be a number';
+                    } else {
+                        const num = Number(value);
+                        if (field.minimum !== undefined && num < field.minimum) {
+                            this.errors[fieldName] = 'Min: ' + field.minimum;
+                        }
+                        if (field.maximum !== undefined && num > field.maximum) {
+                            this.errors[fieldName] = 'Max: ' + field.maximum;
+                        }
+                    }
+                }
+
+                // Email validation
+                if (value && field.format === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                    this.errors[fieldName] = 'Invalid email';
+                }
+
+                // URI validation
+                if (value && field.format === 'uri') {
+                    try { new URL(value); } catch { this.errors[fieldName] = 'Invalid URL'; }
+                }
+
+                // Pattern
+                if (value && field.type === 'string' && field.pattern) {
+                    if (!new RegExp(field.pattern).test(value)) {
+                        this.errors[fieldName] = field.errorMessage || 'Invalid format';
+                    }
+                }
+            });
+
+            return Object.keys(this.errors).length === 0;
+        },
+
+        validateField(fieldName) {
+            const field = this._schema?.properties?.[fieldName];
+            if (!field) return true;
+            const value = this.data[fieldName];
+
+            delete this.errors[fieldName];
+
+            if (this._schema.required?.includes(fieldName) && !value && value !== false && value !== 0) {
+                this.errors[fieldName] = 'Required';
+                return false;
+            }
+            return true;
+        },
+
+        async saveDraft() {
+            if (this.isSaving) return;
+            this.isSaving = true;
+
+            const method = '#if(entry):PUT#else:POST#endif';
+            const url = '/api/v1/#(contentType.slug)#if(entry):/#(entry.id)#endif';
+
+            try {
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        data: this.data,
+                        status: this.publishStatus
+                    })
+                });
+
+                if (res.ok) {
+                    this.lastSaved = new Date();
+                    this.timeAgo = 'just now';
+                    this.originalData = JSON.parse(JSON.stringify(this.data));
+                    this.hasChanges = false;
+                    if (window.addToast) window.addToast('Saved successfully', 'success');
+                } else {
+                    const err = await res.json().catch(() => ({}));
+                    if (window.addToast) window.addToast(err.reason || 'Save failed', 'error');
+                }
+            } catch (err) {
+                if (window.addToast) window.addToast('Network error', 'error');
+            } finally {
+                this.isSaving = false;
+            }
+        },
+
+        handleSubmit() {
+            if (!this.validateAll()) {
+                document.querySelector('.text-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (window.addToast) window.addToast('Please fix validation errors', 'warning');
+                return;
+            }
+
+            this.saveDraft().then(() => {
+                if (Object.keys(this.errors).length === 0) {
+                    setTimeout(() => {
+                        window.location = '/admin/content/#(contentType.slug)';
+                    }, 300);
+                }
+            });
+        },
+
+        // ─── Field Builder ─────────────────────────────────────────
+
+        buildFields() {
+            const schema = this._schema;
+            if (!schema?.properties) return;
+
+            const container = document.getElementById('dynamic-fields');
+            const fieldOrder = #if(contentType.fieldOrder):#(contentType.fieldOrder)#else:[]#endif;
+            const orderedFields = fieldOrder.length > 0
+                ? fieldOrder.map(f => f.toString())
+                : Object.keys(schema.properties).filter(k => !['id', 'createdAt', 'updatedAt'].includes(k));
+
+            orderedFields.forEach(fieldName => {
+                const field = schema.properties?.[fieldName];
+                if (!field) return;
+                // Skip system fields
+                if (['id', 'createdAt', 'updatedAt'].includes(fieldName)) return;
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'form-control field-enter';
+                wrapper.id = 'field-wrapper-' + fieldName;
+
+                // Determine field widget
+                const fieldType = this.detectFieldType(field);
+
+                // Label
+                const isRequired = schema.required?.includes(fieldName);
+                const labelHtml = `
+                    <label class="label pb-1">
+                        <span class="label-text font-semibold text-base-content">${this.escapeHtml(field.title || this.humanize(fieldName))}${isRequired ? ' <span class="text-error">*</span>' : ''}</span>
+                        <span class="label-text-alt text-base-content/40">${fieldType}</span>
+                    </label>
+                `;
+                wrapper.innerHTML = labelHtml;
+
+                // Build input
+                this.buildFieldInput(wrapper, fieldName, field, fieldType);
+
+                // Description
+                if (field.description) {
+                    const desc = document.createElement('div');
+                    desc.className = 'text-xs text-base-content/50 mt-1';
+                    desc.textContent = field.description;
+                    wrapper.appendChild(desc);
+                }
+
+                // Error
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'text-xs text-error mt-1';
+                errorDiv.setAttribute('x-show', `errors['${fieldName}']`);
+                errorDiv.setAttribute('x-text', `errors['${fieldName}']`);
+                wrapper.appendChild(errorDiv);
+
+                container.appendChild(wrapper);
+            });
+        },
+
+        detectFieldType(field) {
+            if (field.type === 'boolean') return 'Toggle';
+            if (field.type === 'integer') return 'Integer';
+            if (field.type === 'number') return 'Number';
+            if (field.type === 'object') return 'JSON';
+            if (field.type === 'array') return 'List';
+
+            if (field.type === 'string') {
+                if (field.format === 'richtext' || field['x-field-type'] === 'richtext') return 'Rich Text';
+                if (field.format === 'textarea') return 'Long Text';
+                if (field.format === 'date') return 'Date';
+                if (field.format === 'date-time' || field.format === 'datetime') return 'DateTime';
+                if (field.format === 'time') return 'Time';
+                if (field.format === 'email') return 'Email';
+                if (field.format === 'uri') return 'URL';
+                if (field.format === 'uuid' && field['x-field-type'] === 'media') return 'Media';
+                if (field.format === 'uuid' && field['x-field-type'] === 'relation') return 'Relation';
+                if (field.format === 'file' || field.format === 'image') return 'File';
+                if (field.enum) return 'Select';
+                // Heuristic: string with maxLength ≤ 500 → short text
+                if (field.maxLength && field.maxLength <= 500) return 'Short Text';
+                // String with no constraints → long text
+                if (!field.maxLength && !field.format && !field.enum) return 'Long Text';
+                return 'Short Text';
+            }
+
+            return 'Text';
+        },
+
+        buildFieldInput(wrapper, fieldName, field, fieldType) {
+            const self = this;
+
+            switch (fieldType) {
+                case 'Rich Text':
+                    this.buildRichText(wrapper, fieldName, field);
+                    break;
+
+                case 'Long Text':
+                    this.buildMarkdownEditor(wrapper, fieldName, field);
+                    break;
+
+                case 'Short Text':
+                    this.buildShortText(wrapper, fieldName, field);
+                    break;
+
+                case 'Email': {
+                    const input = document.createElement('input');
+                    input.type = 'email';
+                    input.className = 'input input-bordered w-full';
+                    input.placeholder = 'user@example.com';
+                    input.value = this.data[fieldName] || '';
+                    input.addEventListener('input', () => {
+                        this.data[fieldName] = input.value;
+                        this.data = { ...this.data };
+                    });
+                    input.addEventListener('blur', () => this.validateField(fieldName));
+                    wrapper.appendChild(input);
+                    break;
+                }
+
+                case 'URL': {
+                    const input = document.createElement('input');
+                    input.type = 'url';
+                    input.className = 'input input-bordered w-full';
+                    input.placeholder = 'https://example.com';
+                    input.value = this.data[fieldName] || '';
+                    input.addEventListener('input', () => {
+                        this.data[fieldName] = input.value;
+                        this.data = { ...this.data };
+                    });
+                    input.addEventListener('blur', () => this.validateField(fieldName));
+                    wrapper.appendChild(input);
+                    break;
+                }
+
+                case 'Date':
+                case 'DateTime':
+                case 'Time':
+                    this.buildDatePicker(wrapper, fieldName, field, fieldType);
+                    break;
+
+                case 'Select':
+                    this.buildSelect(wrapper, fieldName, field);
+                    break;
+
+                case 'Integer':
+                case 'Number':
+                    this.buildNumber(wrapper, fieldName, field);
+                    break;
+
+                case 'Toggle':
+                    this.buildToggle(wrapper, fieldName, field);
+                    break;
+
+                case 'JSON':
+                    this.buildJsonEditor(wrapper, fieldName, field);
+                    break;
+
+                case 'List':
+                    this.buildArrayEditor(wrapper, fieldName, field);
+                    break;
+
+                case 'Media':
+                    this.buildMediaPicker(wrapper, fieldName, field);
+                    break;
+
+                case 'Relation':
+                    this.buildRelationPicker(wrapper, fieldName, field);
+                    break;
+
+                case 'File':
+                    this.buildFilePicker(wrapper, fieldName, field);
+                    break;
+
+                default:
+                    this.buildShortText(wrapper, fieldName, field);
+            }
+        },
+
+        // ─── Short Text ────────────────────────────────────────────
+
+        buildShortText(wrapper, fieldName, field) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'input input-bordered w-full';
+            input.placeholder = field.title || this.humanize(fieldName);
+            input.value = this.data[fieldName] || '';
+            if (field.maxLength) input.maxLength = field.maxLength;
+
+            input.addEventListener('input', () => {
+                this.data[fieldName] = input.value;
+                this.data = { ...this.data };
+                if (counter) counter.textContent = input.value.length + ' / ' + field.maxLength;
+            });
+            input.addEventListener('blur', () => this.validateField(fieldName));
+
+            wrapper.appendChild(input);
+
+            let counter = null;
+            if (field.maxLength) {
+                counter = document.createElement('div');
+                counter.className = 'text-xs text-base-content/40 mt-1 text-right';
+                counter.textContent = (this.data[fieldName] || '').length + ' / ' + field.maxLength;
+                wrapper.appendChild(counter);
+            }
+        },
+
+        // ─── Rich Text (TipTap) ───────────────────────────────────
+
+        buildRichText(wrapper, fieldName, field) {
+            const editorWrapper = document.createElement('div');
+            editorWrapper.className = 'border border-base-300 rounded-lg overflow-hidden';
+
+            // Toolbar
+            const toolbar = document.createElement('div');
+            toolbar.className = 'tiptap-toolbar';
+            toolbar.innerHTML = `
+                <button type="button" data-cmd="bold" title="Bold (Cmd+B)"><b>B</b></button>
+                <button type="button" data-cmd="italic" title="Italic (Cmd+I)"><i>I</i></button>
+                <button type="button" data-cmd="strike" title="Strikethrough"><s>S</s></button>
+                <button type="button" data-cmd="code" title="Inline Code">&lt;/&gt;</button>
+                <div class="separator"></div>
+                <button type="button" data-cmd="h1" title="Heading 1">H1</button>
+                <button type="button" data-cmd="h2" title="Heading 2">H2</button>
+                <button type="button" data-cmd="h3" title="Heading 3">H3</button>
+                <div class="separator"></div>
+                <button type="button" data-cmd="bulletList" title="Bullet List">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>
+                </button>
+                <button type="button" data-cmd="orderedList" title="Numbered List">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><text x="2" y="8" font-size="8" fill="currentColor" stroke="none">1</text><text x="2" y="14" font-size="8" fill="currentColor" stroke="none">2</text><text x="2" y="20" font-size="8" fill="currentColor" stroke="none">3</text></svg>
+                </button>
+                <div class="separator"></div>
+                <button type="button" data-cmd="blockquote" title="Blockquote">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3z"/></svg>
+                </button>
+                <button type="button" data-cmd="codeBlock" title="Code Block">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                </button>
+                <button type="button" data-cmd="hr" title="Horizontal Rule">&mdash;</button>
+                <div class="separator"></div>
+                <button type="button" data-cmd="undo" title="Undo (Cmd+Z)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                </button>
+                <button type="button" data-cmd="redo" title="Redo (Cmd+Shift+Z)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                </button>
+            `;
+            editorWrapper.appendChild(toolbar);
+
+            // Editor content area
+            const editorArea = document.createElement('div');
+            editorArea.className = 'bg-base-100';
+            editorWrapper.appendChild(editorArea);
+            wrapper.appendChild(editorWrapper);
+
+            // Initialize TipTap
+            setTimeout(() => {
+                try {
+                    // Check for TipTap availability (loaded from base.leaf CDN)
+                    const TipTapCore = window.tiptapCore || window.TipTap;
+                    const StarterKit = window.tiptapStarterKit || window.TipTapStarterKit;
+
+                    if (!TipTapCore?.Editor) {
+                        // Fallback: render as textarea
+                        editorWrapper.innerHTML = '';
+                        const textarea = document.createElement('textarea');
+                        textarea.className = 'textarea textarea-bordered w-full min-h-48';
+                        textarea.placeholder = 'Enter rich text content...';
+                        textarea.value = this.data[fieldName] || '';
+                        textarea.addEventListener('input', () => {
+                            this.data[fieldName] = textarea.value;
+                            this.data = { ...this.data };
+                        });
+                        wrapper.insertBefore(textarea, wrapper.querySelector('.text-xs'));
+                        return;
+                    }
+
+                    const editor = new TipTapCore.Editor({
+                        element: editorArea,
+                        extensions: StarterKit?.configure ? [StarterKit.configure()] : [StarterKit],
+                        content: this.data[fieldName] || '',
+                        editorProps: {
+                            attributes: {
+                                class: 'ProseMirror'
+                            }
+                        },
+                        onUpdate: ({ editor: ed }) => {
+                            this.data[fieldName] = ed.getHTML();
+                            this.data = { ...this.data };
+                        }
+                    });
+
+                    this._editors[fieldName] = editor;
+
+                    // Wire toolbar buttons
+                    toolbar.querySelectorAll('button[data-cmd]').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            const cmd = btn.dataset.cmd;
+                            switch (cmd) {
+                                case 'bold': editor.chain().focus().toggleBold().run(); break;
+                                case 'italic': editor.chain().focus().toggleItalic().run(); break;
+                                case 'strike': editor.chain().focus().toggleStrike().run(); break;
+                                case 'code': editor.chain().focus().toggleCode().run(); break;
+                                case 'h1': editor.chain().focus().toggleHeading({ level: 1 }).run(); break;
+                                case 'h2': editor.chain().focus().toggleHeading({ level: 2 }).run(); break;
+                                case 'h3': editor.chain().focus().toggleHeading({ level: 3 }).run(); break;
+                                case 'bulletList': editor.chain().focus().toggleBulletList().run(); break;
+                                case 'orderedList': editor.chain().focus().toggleOrderedList().run(); break;
+                                case 'blockquote': editor.chain().focus().toggleBlockquote().run(); break;
+                                case 'codeBlock': editor.chain().focus().toggleCodeBlock().run(); break;
+                                case 'hr': editor.chain().focus().setHorizontalRule().run(); break;
+                                case 'undo': editor.chain().focus().undo().run(); break;
+                                case 'redo': editor.chain().focus().redo().run(); break;
+                            }
+                            this.updateToolbarState(toolbar, editor);
+                        });
+                    });
+
+                    // Update toolbar active states on selection change
+                    editor.on('selectionUpdate', () => this.updateToolbarState(toolbar, editor));
+                    editor.on('update', () => this.updateToolbarState(toolbar, editor));
+
+                } catch (err) {
+                    // Fallback: plain textarea
+                    editorWrapper.innerHTML = '';
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'textarea textarea-bordered w-full min-h-48';
+                    textarea.value = this.data[fieldName] || '';
+                    textarea.addEventListener('input', () => {
+                        this.data[fieldName] = textarea.value;
+                        this.data = { ...this.data };
+                    });
+                    wrapper.insertBefore(textarea, wrapper.querySelector('.text-xs'));
+                }
+            }, 50);
+        },
+
+        updateToolbarState(toolbar, editor) {
+            toolbar.querySelectorAll('button[data-cmd]').forEach(btn => {
+                const cmd = btn.dataset.cmd;
+                let isActive = false;
+                switch (cmd) {
+                    case 'bold': isActive = editor.isActive('bold'); break;
+                    case 'italic': isActive = editor.isActive('italic'); break;
+                    case 'strike': isActive = editor.isActive('strike'); break;
+                    case 'code': isActive = editor.isActive('code'); break;
+                    case 'h1': isActive = editor.isActive('heading', { level: 1 }); break;
+                    case 'h2': isActive = editor.isActive('heading', { level: 2 }); break;
+                    case 'h3': isActive = editor.isActive('heading', { level: 3 }); break;
+                    case 'bulletList': isActive = editor.isActive('bulletList'); break;
+                    case 'orderedList': isActive = editor.isActive('orderedList'); break;
+                    case 'blockquote': isActive = editor.isActive('blockquote'); break;
+                    case 'codeBlock': isActive = editor.isActive('codeBlock'); break;
+                }
+                btn.classList.toggle('is-active', isActive);
+            });
+        },
+
+        // ─── Markdown (EasyMDE) ───────────────────────────────────
+
+        buildMarkdownEditor(wrapper, fieldName, field) {
+            const editorContainer = document.createElement('div');
+            const textarea = document.createElement('textarea');
+            editorContainer.appendChild(textarea);
+            wrapper.appendChild(editorContainer);
+
+            setTimeout(() => {
+                try {
+                    textarea.value = this.data[fieldName] || '';
+                    const easyMDE = new EasyMDE({
+                        element: textarea,
+                        initialValue: this.data[fieldName] || '',
+                        spellChecker: false,
+                        status: false,
+                        minHeight: '150px',
+                        forceSync: true,
+                        placeholder: 'Write markdown content...',
+                        toolbar: ['bold', 'italic', 'heading', '|', 'quote', 'unordered-list', 'ordered-list', '|', 'link', 'image', 'code', '|', 'preview', 'guide'],
+                        uploadImage: true,
+                        imageUploadFunction: (file, onSuccess, onError) => {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            fetch('/admin/media/upload/json', { method: 'POST', body: formData })
+                                .then(r => { if (!r.ok) throw new Error('Upload failed'); return r.json(); })
+                                .then(d => onSuccess(d.url))
+                                .catch(e => onError(e.message));
+                        }
+                    });
+
+                    easyMDE.codemirror.on('change', () => {
+                        this.data[fieldName] = easyMDE.value();
+                        this.data = { ...this.data };
+                    });
+
+                    this._editors[fieldName] = easyMDE;
+                } catch (err) {
+                    // Fallback: plain textarea
+                    editorContainer.innerHTML = '';
+                    const fallback = document.createElement('textarea');
+                    fallback.className = 'textarea textarea-bordered w-full min-h-32';
+                    fallback.value = this.data[fieldName] || '';
+                    fallback.addEventListener('input', () => {
+                        this.data[fieldName] = fallback.value;
+                        this.data = { ...this.data };
+                    });
+                    editorContainer.appendChild(fallback);
+                }
+            }, 20);
+        },
+
+        // ─── Date Picker ──────────────────────────────────────────
+
+        buildDatePicker(wrapper, fieldName, field, fieldType) {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'input input-bordered w-full';
+            input.placeholder = fieldType === 'Date' ? 'YYYY-MM-DD' : fieldType === 'Time' ? 'HH:MM' : 'YYYY-MM-DD HH:MM';
+            input.value = this.data[fieldName] || '';
+            wrapper.appendChild(input);
+
+            setTimeout(() => {
+                const config = {
+                    enableTime: fieldType !== 'Date',
+                    noCalendar: fieldType === 'Time',
+                    dateFormat: fieldType === 'Date' ? 'Y-m-d' : fieldType === 'Time' ? 'H:i' : 'Y-m-d H:i',
+                    defaultDate: this.data[fieldName] || null,
+                    onChange: (selectedDates, dateStr) => {
+                        this.data[fieldName] = dateStr;
+                        this.data = { ...this.data };
+                        this.validateField(fieldName);
+                    }
+                };
+                flatpickr(input, config);
+            }, 10);
+        },
+
+        // ─── Select (Enum) ────────────────────────────────────────
+
+        buildSelect(wrapper, fieldName, field) {
+            const select = document.createElement('select');
+            select.className = 'select select-bordered w-full';
+
+            const emptyOpt = document.createElement('option');
+            emptyOpt.value = '';
+            emptyOpt.textContent = 'Select...';
+            select.appendChild(emptyOpt);
+
+            (field.enum || []).forEach((opt, i) => {
+                const option = document.createElement('option');
+                option.value = opt;
+                option.textContent = field.enumNames?.[i] || opt;
+                if (this.data[fieldName] === opt) option.selected = true;
+                select.appendChild(option);
+            });
+
+            select.addEventListener('change', () => {
+                this.data[fieldName] = select.value;
+                this.data = { ...this.data };
+                this.validateField(fieldName);
+            });
+
+            wrapper.appendChild(select);
+        },
+
+        // ─── Number ───────────────────────────────────────────────
+
+        buildNumber(wrapper, fieldName, field) {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'input input-bordered w-full';
+            input.value = this.data[fieldName] ?? '';
+            if (field.minimum !== undefined) input.min = field.minimum;
+            if (field.maximum !== undefined) input.max = field.maximum;
+            if (field.type === 'integer') input.step = '1';
+            else if (field.step !== undefined) input.step = field.step;
+
+            input.addEventListener('input', () => {
+                const val = input.value === '' ? null : Number(input.value);
+                this.data[fieldName] = val;
+                this.data = { ...this.data };
+            });
+            input.addEventListener('blur', () => this.validateField(fieldName));
+
+            wrapper.appendChild(input);
+
+            // Show min/max hints
+            if (field.minimum !== undefined || field.maximum !== undefined) {
+                const hint = document.createElement('div');
+                hint.className = 'text-xs text-base-content/40 mt-1';
+                const parts = [];
+                if (field.minimum !== undefined) parts.push('Min: ' + field.minimum);
+                if (field.maximum !== undefined) parts.push('Max: ' + field.maximum);
+                hint.textContent = parts.join(' | ');
+                wrapper.appendChild(hint);
+            }
+        },
+
+        // ─── Toggle ───────────────────────────────────────────────
+
+        buildToggle(wrapper, fieldName, field) {
+            // Remove the default label since toggle has its own
+            const existingLabel = wrapper.querySelector('label');
+
+            const toggleDiv = document.createElement('div');
+            toggleDiv.className = 'flex items-center gap-3 py-2';
+
+            const toggle = document.createElement('input');
+            toggle.type = 'checkbox';
+            toggle.className = 'toggle toggle-primary';
+            toggle.checked = !!this.data[fieldName];
+
+            toggle.addEventListener('change', () => {
+                this.data[fieldName] = toggle.checked;
+                this.data = { ...this.data };
+                stateLabel.textContent = toggle.checked ? 'Enabled' : 'Disabled';
+            });
+
+            const stateLabel = document.createElement('span');
+            stateLabel.className = 'text-sm text-base-content/60';
+            stateLabel.textContent = this.data[fieldName] ? 'Enabled' : 'Disabled';
+
+            toggleDiv.appendChild(toggle);
+            toggleDiv.appendChild(stateLabel);
+            wrapper.appendChild(toggleDiv);
+        },
+
+        // ─── JSON Editor ──────────────────────────────────────────
+
+        buildJsonEditor(wrapper, fieldName, field) {
+            const container = document.createElement('div');
+            container.className = 'collapse collapse-arrow bg-base-200 rounded-lg border border-base-300';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = true;
+            container.appendChild(checkbox);
+
+            const title = document.createElement('div');
+            title.className = 'collapse-title font-medium flex items-center gap-2 text-sm';
+            title.innerHTML = `
+                <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                </svg>
+                JSON Editor
+                <span id="json-error-${fieldName}" class="text-xs text-error hidden"></span>
+            `;
+            container.appendChild(title);
+
+            const content = document.createElement('div');
+            content.className = 'collapse-content';
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'textarea textarea-bordered w-full font-mono text-xs bg-base-100';
+            textarea.rows = 10;
+            textarea.value = JSON.stringify(this.data[fieldName] || {}, null, 2);
+            textarea.spellcheck = false;
+
+            const errorSpan = title.querySelector('#json-error-' + fieldName);
+
+            textarea.addEventListener('input', () => {
+                try {
+                    this.data[fieldName] = JSON.parse(textarea.value);
+                    this.data = { ...this.data };
+                    errorSpan.classList.add('hidden');
+                    textarea.classList.remove('textarea-error');
+                } catch (e) {
+                    errorSpan.textContent = 'Invalid JSON';
+                    errorSpan.classList.remove('hidden');
+                    textarea.classList.add('textarea-error');
+                }
+            });
+
+            content.appendChild(textarea);
+            container.appendChild(content);
+            wrapper.appendChild(container);
+        },
+
+        // ─── Array Editor ─────────────────────────────────────────
+
+        buildArrayEditor(wrapper, fieldName, field) {
+            const container = document.createElement('div');
+            container.className = 'space-y-2';
+
+            const renderItems = () => {
+                const items = this.data[fieldName] || [];
+                container.innerHTML = '';
+
+                items.forEach((item, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'flex gap-2 items-center';
+
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.className = 'input input-bordered input-sm flex-1';
+                    input.value = typeof item === 'string' ? item : JSON.stringify(item);
+                    input.addEventListener('input', () => {
+                        const arr = this.data[fieldName] || [];
+                        arr[index] = input.value;
+                        this.data[fieldName] = [...arr];
+                        this.data = { ...this.data };
+                    });
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'btn btn-ghost btn-sm btn-square text-error';
+                    removeBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>';
+                    removeBtn.addEventListener('click', () => {
+                        const arr = this.data[fieldName] || [];
+                        arr.splice(index, 1);
+                        this.data[fieldName] = [...arr];
+                        this.data = { ...this.data };
+                        renderItems();
+                    });
+
+                    row.appendChild(input);
+                    row.appendChild(removeBtn);
+                    container.appendChild(row);
+                });
+
+                // Add button
+                const addBtn = document.createElement('button');
+                addBtn.type = 'button';
+                addBtn.className = 'btn btn-outline btn-sm w-full';
+                addBtn.innerHTML = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v12m6-6H6"/></svg> Add Item';
+                addBtn.addEventListener('click', () => {
+                    if (!this.data[fieldName]) this.data[fieldName] = [];
+                    this.data[fieldName].push('');
+                    this.data = { ...this.data };
+                    renderItems();
+                });
+                container.appendChild(addBtn);
+            };
+
+            renderItems();
+            wrapper.appendChild(container);
+        },
+
+        // ─── Media Picker ─────────────────────────────────────────
+
+        buildMediaPicker(wrapper, fieldName, field) {
+            const container = document.createElement('div');
+            container.className = 'flex items-center gap-4 p-3 bg-base-200 rounded-lg';
+
+            const currentValue = this.data[fieldName];
+
+            container.innerHTML = `
+                <div class="relative w-20 h-20 rounded-lg overflow-hidden bg-base-300 flex-shrink-0">
+                    <img id="media-preview-${fieldName}"
+                         src="${currentValue ? '/api/v1/media/' + currentValue + '/thumbnail' : ''}"
+                         class="w-full h-full object-cover"
+                         style="display: ${currentValue ? 'block' : 'none'}"
+                         onerror="this.style.display='none'; document.getElementById('media-empty-${fieldName}').style.display='flex'">
+                    <div id="media-empty-${fieldName}"
+                         class="absolute inset-0 flex items-center justify-center"
+                         style="display: ${currentValue ? 'none' : 'flex'}">
+                        <svg class="w-8 h-8 text-base-content/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <button type="button" class="btn btn-outline btn-sm" id="media-select-${fieldName}">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        ${currentValue ? 'Change' : 'Select'} Media
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-xs text-error" id="media-remove-${fieldName}"
+                            style="display: ${currentValue ? 'inline-flex' : 'none'}">
+                        Remove
+                    </button>
+                    <span class="text-xs text-base-content/40 font-mono" id="media-id-${fieldName}"
+                          style="display: ${currentValue ? 'block' : 'none'}">${currentValue || ''}</span>
+                </div>
+            `;
+
+            wrapper.appendChild(container);
+
+            // Wire select button
+            const selectBtn = container.querySelector('#media-select-' + fieldName);
+            selectBtn.addEventListener('click', () => {
+                window.dispatchEvent(new CustomEvent('open-media-picker', {
+                    detail: { fieldName }
+                }));
+            });
+
+            // Wire remove button
+            const removeBtn = container.querySelector('#media-remove-' + fieldName);
+            removeBtn.addEventListener('click', () => {
+                this.data[fieldName] = null;
+                this.data = { ...this.data };
+                const preview = container.querySelector('#media-preview-' + fieldName);
+                const empty = container.querySelector('#media-empty-' + fieldName);
+                const idSpan = container.querySelector('#media-id-' + fieldName);
+                if (preview) preview.style.display = 'none';
+                if (empty) empty.style.display = 'flex';
+                removeBtn.style.display = 'none';
+                if (idSpan) idSpan.style.display = 'none';
+                selectBtn.innerHTML = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> Select Media';
+            });
+
+            // Listen for media selection for this field
+            window.addEventListener('media-selected', (e) => {
+                if (e.detail.fieldName === fieldName) {
+                    const removeB = container.querySelector('#media-remove-' + fieldName);
+                    const selectB = container.querySelector('#media-select-' + fieldName);
+                    const idSpan = container.querySelector('#media-id-' + fieldName);
+                    if (removeB) removeB.style.display = 'inline-flex';
+                    if (selectB) selectB.innerHTML = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> Change Media';
+                    if (idSpan) { idSpan.textContent = e.detail.id; idSpan.style.display = 'block'; }
+                }
+            });
+        },
+
+        // ─── Relation Picker ──────────────────────────────────────
+
+        buildRelationPicker(wrapper, fieldName, field) {
+            const container = document.createElement('div');
+            container.className = 'space-y-2';
+
+            const relType = field['x-relation-type'] || 'entries';
+            const currentValue = this.data[fieldName];
+
+            container.innerHTML = `
+                <div class="relative">
+                    <input type="text" id="rel-search-${fieldName}" placeholder="Search ${relType}..."
+                           class="input input-bordered input-sm w-full"
+                           value="${currentValue || ''}">
+                    <div id="rel-dropdown-${fieldName}"
+                         class="absolute z-10 w-full bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-48 overflow-y-auto hidden mt-1">
+                    </div>
+                </div>
+                <div id="rel-selected-${fieldName}" class="flex items-center gap-2"
+                     style="display: ${currentValue ? 'flex' : 'none'}">
+                    <span class="badge badge-primary badge-sm font-mono">${currentValue || ''}</span>
+                    <button type="button" class="text-error text-xs hover:underline" id="rel-clear-${fieldName}">Clear</button>
+                </div>
+            `;
+
+            wrapper.appendChild(container);
+
+            const searchInput = container.querySelector('#rel-search-' + fieldName);
+            const dropdown = container.querySelector('#rel-dropdown-' + fieldName);
+            const selectedDiv = container.querySelector('#rel-selected-' + fieldName);
+            const clearBtn = container.querySelector('#rel-clear-' + fieldName);
+
+            let debounceTimer;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
+                    const q = searchInput.value.trim();
+                    if (q.length < 2) { dropdown.classList.add('hidden'); return; }
+
+                    try {
+                        const res = await fetch('/api/v1/' + relType + '?q=' + encodeURIComponent(q) + '&limit=10');
+                        const json = await res.json();
+                        const items = json.data || [];
+
+                        dropdown.innerHTML = items.map(item =>
+                            `<div class="p-2 hover:bg-base-200 cursor-pointer text-sm" data-id="${item.id}">${this.escapeHtml(item.title || item.id)}</div>`
+                        ).join('') || '<div class="p-2 text-sm text-base-content/50">No results</div>';
+
+                        dropdown.classList.remove('hidden');
+
+                        dropdown.querySelectorAll('[data-id]').forEach(el => {
+                            el.addEventListener('click', () => {
+                                this.data[fieldName] = el.dataset.id;
+                                this.data = { ...this.data };
+                                searchInput.value = el.textContent;
+                                dropdown.classList.add('hidden');
+                                selectedDiv.style.display = 'flex';
+                                selectedDiv.querySelector('.badge').textContent = el.dataset.id;
+                            });
+                        });
+                    } catch (e) {
+                        dropdown.classList.add('hidden');
+                    }
+                }, 300);
+            });
+
+            clearBtn.addEventListener('click', () => {
+                this.data[fieldName] = null;
+                this.data = { ...this.data };
+                searchInput.value = '';
+                selectedDiv.style.display = 'none';
+            });
+
+            // Close dropdown on click outside
+            document.addEventListener('click', (e) => {
+                if (!container.contains(e.target)) dropdown.classList.add('hidden');
+            });
+        },
+
+        // ─── File Picker ──────────────────────────────────────────
+
+        buildFilePicker(wrapper, fieldName, field) {
+            const container = document.createElement('div');
+            container.className = 'space-y-2';
+
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.className = 'file-input file-input-bordered w-full';
+
+            if (field.format === 'image') fileInput.accept = 'image/*';
+
+            fileInput.addEventListener('change', () => {
+                const file = fileInput.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.data[fieldName] = e.target.result;
+                    this.data = { ...this.data };
+                    if (field.format === 'image' && preview) {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+
+            container.appendChild(fileInput);
+
+            let preview = null;
+            if (field.format === 'image') {
+                preview = document.createElement('img');
+                preview.className = 'w-32 h-32 object-cover rounded-lg border border-base-300';
+                preview.style.display = this.data[fieldName] ? 'block' : 'none';
+                if (this.data[fieldName]) preview.src = this.data[fieldName];
+                container.appendChild(preview);
+            }
+
+            wrapper.appendChild(container);
+        },
+
+        // ─── Helpers ──────────────────────────────────────────────
+
+        humanize(str) {
+            return str
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/[_-]/g, ' ')
+                .replace(/^\s+/, '')
+                .split(' ')
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ');
+        },
+
+        escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    };
+}
+</script>
 #endexport
 #endextend
