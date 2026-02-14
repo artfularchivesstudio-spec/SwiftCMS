@@ -4,11 +4,25 @@ All notable changes to SwiftCMS will be documented in this file.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.1.1] - 2026-02-14
+
+### Fixed — Build Stabilization & Path Sanitization
+
+- **Actor Isolation**: Fixed `RedisStreamsEventBus` actor isolation issues using `nonisolated` methods and detached `Task` blocks.
+- **Dependency Visibility**: Moved `AuthenticatedUser`, `CmsUser`, and `ApiError` to `CMSObjects` to resolve circular dependencies and scope issues.
+- **Swift Concurrency**: Updated `configure.swift` and `entrypoint.swift` to use `async/await` for `autoMigrate()` and app execution.
+- **Soto 6.x SDK**: Updated `S3StorageProvider` to comply with Soto v6/v7 breaking changes (`AWSHTTPBody`, `signURL`).
+- **Project Structure**:
+    - Relocated `VersionPruningJob` to `CMSJobs`.
+    - Consolidated `StrapiSchemaParser` into `CMSCLI/StrapiParser.swift`.
+    - Cleaned up `Package.swift` by removing redundant `path:` arguments.
+    - Removed nested `SwiftCMS/SwiftCMS` directory references.
+- **Tests**: Resolved test redeclaration (`AnyCodableValueTests`) in `CMSObjectsTests`.
 
 ### Changed
-- Flattened project structure by removing the nested `SwiftCMS/SwiftCMS` directory. The project now resides in the repository root for improved tooling compatibility and developer experience.
-- Refactored `Package.swift` to remove redundant explicit paths and added the `CMSCLI` executable target.
+
+- Updated `AGENTS.md` status to reflect 45 passing tests (adjusted due to test consolidation).
+- Updated `README.md` and `docs/installation.md` with correct repository paths.
 
 ## [0.1.0] - 2026-02-14
 
