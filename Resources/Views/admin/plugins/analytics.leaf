@@ -1,0 +1,26 @@
+#extend("admin/base"):
+#export("content"):
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <h3 class="text-lg font-semibold mb-4">Content Analytics</h3>
+    <canvas id="typeChart" height="300"></canvas>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+fetch('/api/v1/plugins/analytics/stats')
+    .then(r => r.json())
+    .then(data => {
+        new Chart(document.getElementById('typeChart'), {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.name),
+                datasets: [{
+                    label: 'Entries',
+                    data: data.map(d => d.count),
+                    backgroundColor: 'hsl(var(--p))'
+                }]
+            }
+        });
+    });
+</script>
+#endexport
+#endextend

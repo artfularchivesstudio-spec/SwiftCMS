@@ -1,0 +1,12 @@
+{
+    "name": "seo",
+    "version": "1.0.0",
+    "description": "SEO tools: sitemap.xml, robots.txt, meta tag management",
+    "author": "SwiftCMS",
+    "dependencies": [],
+    "hooks": ["afterSave"],
+    "adminPages": [
+        {"label": "SEO", "icon": "search", "path": "/admin/plugins/seo"}
+    ],
+    "fieldTypes": ["seo"]
+}

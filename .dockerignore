@@ -1,0 +1,8 @@
+.build/
+.git/
+*.xcodeproj
+DerivedData/
+Tests/
+*.md
+.env
+.DS_Store

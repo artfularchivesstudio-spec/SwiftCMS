@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>#(title) - SwiftCMS</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+    <style>
+        .sidebar { min-height: 100vh; }
+        .content-area { min-height: 100vh; }
+    </style>
+</head>
+<body class="bg-base-200">
+    <div class="flex">
+        <!-- Sidebar -->
+        <aside class="sidebar w-64 bg-base-100 border-r border-base-300 p-4 hidden lg:block">
+            <div class="mb-8">
+                <h1 class="text-xl font-bold text-primary">SwiftCMS</h1>
+                <p class="text-xs text-base-content/50">Admin Panel</p>
+            </div>
+            <nav>
+                <ul class="menu">
+                    <li><a href="/admin" class="#if(activePage == "dashboard"):bg-primary text-primary-content #endif">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
+                        Dashboard
+                    </a></li>
+                    <li><a href="/admin/content-types" class="#if(activePage == "content-types"):bg-primary text-primary-content #endif">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg>
+                        Content Types
+                    </a></li>
+                    <li><a href="/admin/media" class="#if(activePage == "media"):bg-primary text-primary-content #endif">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/></svg>
+                        Media
+                    </a></li>
+                    <li><a href="/admin/users" class="#if(activePage == "users"):bg-primary text-primary-content #endif">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg>
+                        Users
+                    </a></li>
+                    <li><a href="/admin/webhooks" class="#if(activePage == "webhooks"):bg-primary text-primary-content #endif">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clip-rule="evenodd"/></svg>
+                        Webhooks
+                    </a></li>
+                    <li><a href="/admin/settings" class="#if(activePage == "settings"):bg-primary text-primary-content #endif">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+                        Settings
+                    </a></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="content-area flex-1 p-6">
+            <!-- Top Bar -->
+            <div class="navbar bg-base-100 rounded-box mb-6 shadow-sm">
+                <div class="flex-1">
+                    <h2 class="text-lg font-semibold">#(title)</h2>
+                </div>
+                <div class="flex-none gap-2">
+                    <div class="form-control">
+                        <input type="text" placeholder="Search..." class="input input-bordered input-sm w-48"
+                               hx-get="/admin/search" hx-trigger="keyup changed delay:300ms" hx-target="#search-results" name="q">
+                    </div>
+                    <div class="dropdown dropdown-end">
+                        <div tabindex="0" role="button" class="btn btn-ghost btn-circle avatar placeholder">
+                            <div class="bg-neutral text-neutral-content w-8 rounded-full">
+                                <span class="text-xs">A</span>
+                            </div>
+                        </div>
+                        <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow">
+                            <li><a href="/admin/logout">Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="search-results"></div>
+
+            <!-- Page Content -->
+            #import("content")
+        </main>
+    </div>
+
+    <script>
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+            localStorage.setItem('theme', html.getAttribute('data-theme'));
+        }
+        // Apply saved theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    </script>
+</body>
+</html>

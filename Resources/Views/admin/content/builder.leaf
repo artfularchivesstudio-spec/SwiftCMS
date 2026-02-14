@@ -1,0 +1,46 @@
+#extend("admin/base"):
+#export("content"):
+<div class="bg-base-100 rounded-box shadow-sm p-6" x-data="{ fields: [], name: '', slug: '', kind: 'collection' }">
+    <h3 class="text-lg font-semibold mb-6">Content Type Builder</h3>
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="form-control">
+            <label class="label"><span class="label-text">Name</span></label>
+            <input type="text" x-model="name" @input="slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')" class="input input-bordered" placeholder="Blog Post">
+        </div>
+        <div class="form-control">
+            <label class="label"><span class="label-text">Slug</span></label>
+            <input type="text" x-model="slug" class="input input-bordered" placeholder="blog-post">
+        </div>
+    </div>
+    <div class="form-control mb-6">
+        <label class="label"><span class="label-text">Kind</span></label>
+        <select x-model="kind" class="select select-bordered w-full max-w-xs">
+            <option value="collection">Collection</option>
+            <option value="single">Single</option>
+        </select>
+    </div>
+    <h4 class="font-semibold mb-4">Fields</h4>
+    <template x-for="(field, index) in fields" :key="index">
+        <div class="flex gap-2 mb-2 items-end">
+            <input type="text" x-model="field.name" class="input input-bordered input-sm flex-1" placeholder="Field name">
+            <select x-model="field.type" class="select select-bordered select-sm">
+                #for(ft in fieldTypes):
+                <option value="#(ft)">#(ft)</option>
+                #endfor
+            </select>
+            <label class="label cursor-pointer gap-1"><input type="checkbox" x-model="field.required" class="checkbox checkbox-sm"><span class="label-text text-xs">Required</span></label>
+            <button @click="fields.splice(index, 1)" class="btn btn-error btn-sm btn-outline">X</button>
+        </div>
+    </template>
+    <button @click="fields.push({name:'', type:'shortText', required:false})" class="btn btn-outline btn-sm mb-6">+ Add Field</button>
+    <div class="divider"></div>
+    <button @click="
+        fetch('/api/v1/content-types', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({name, slug, displayName: name, kind, fieldOrder: fields})
+        }).then(r => { if(r.ok) window.location='/admin/content-types'; else r.json().then(e => alert(e.reason)); })
+    " class="btn btn-primary">Create Content Type</button>
+</div>
+#endexport
+#endextend

@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: swiftcms
+  labels:
+    app: swiftcms
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: swiftcms
+  template:
+    metadata:
+      labels:
+        app: swiftcms
+    spec:
+      containers:
+        - name: swiftcms
+          image: ghcr.io/swiftcms/swiftcms:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: swiftcms-config
+            - secretRef:
+                name: swiftcms-secrets
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: swiftcms
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+  selector:
+    app: swiftcms
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: swiftcms
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: swiftcms
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: swiftcms-config
+data:
+  AUTH_PROVIDER: "auth0"
+  MEILI_URL: "http://meilisearch:7700"
+  APP_URL: "https://cms.example.com"
+  ALLOWED_ORIGINS: "https://example.com,https://admin.example.com"
+  DB_POOL_SIZE: "10"
+  REDIS_POOL_SIZE: "5"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: swiftcms-secrets
+type: Opaque
+data:
+  DATABASE_URL: cG9zdGdyZXNxbDovL3N3aWZ0Y21zOnN3aWZ0Y21zQHBvc3RncmVzOjU0MzIvc3dpZnRjbXM=
+  REDIS_URL: cmVkaXM6Ly9yZWRpczo2Mzc5
+  AUTH0_DOMAIN: eW91ci10ZW5hbnQuYXV0aDAuY29t
+  AUTH0_AUDIENCE: aHR0cHM6Ly9hcGkuZXhhbXBsZS5jb20=
+  JWT_SECRET: Y2hhbmdlLW1lLWluLXByb2R1Y3Rpb24=
+  MEILI_KEY: bWFzdGVyS2V5

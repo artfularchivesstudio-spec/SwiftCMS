@@ -1,0 +1,11 @@
+{
+    "name": "analytics",
+    "version": "1.0.0",
+    "description": "Track API hits per content type per day",
+    "author": "SwiftCMS",
+    "dependencies": [],
+    "hooks": [],
+    "adminPages": [
+        {"label": "Analytics", "icon": "chart", "path": "/admin/plugins/analytics"}
+    ]
+}

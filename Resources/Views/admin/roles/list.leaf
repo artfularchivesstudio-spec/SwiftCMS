@@ -1,0 +1,73 @@
+#extend("admin/base"):
+#export("content"):
+<div class="flex justify-between items-center mb-6">
+    <h3 class="text-lg font-semibold">Roles & Permissions</h3>
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('new-role-modal').showModal()">+ New Role</button>
+</div>
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Role</th>
+                <th>Slug</th>
+                <th>System</th>
+                <th>Permissions</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            #for(role in roles):
+            <tr>
+                <td class="font-semibold">#(role.name)</td>
+                <td><code class="text-xs">#(role.slug)</code></td>
+                <td>#if(role.isSystem):<span class="badge badge-warning badge-sm">System</span>#else:<span class="badge badge-ghost badge-sm">Custom</span>#endif</td>
+                <td>
+                    #for(perm in role.permissions):
+                    <span class="badge badge-outline badge-xs mr-1">#(perm.contentTypeSlug):#(perm.action)</span>
+                    #endfor
+                </td>
+                <td>
+                    #if(!role.isSystem):
+                    <button class="btn btn-ghost btn-xs">Edit</button>
+                    #endif
+                </td>
+            </tr>
+            #endfor
+        </tbody>
+    </table>
+</div>
+
+<!-- Permission Matrix -->
+<div class="bg-base-100 rounded-box shadow-sm p-6 mt-6">
+    <h4 class="font-semibold mb-4">Permission Matrix</h4>
+    <div class="overflow-x-auto">
+        <table class="table table-xs">
+            <thead>
+                <tr>
+                    <th>Content Type</th>
+                    <th>Create</th>
+                    <th>Read</th>
+                    <th>Update</th>
+                    <th>Delete</th>
+                    <th>Publish</th>
+                    <th>Configure</th>
+                </tr>
+            </thead>
+            <tbody>
+                #for(type in contentTypes):
+                <tr>
+                    <td class="font-semibold">#(type.displayName)</td>
+                    <td><input type="checkbox" class="checkbox checkbox-xs checkbox-primary"></td>
+                    <td><input type="checkbox" class="checkbox checkbox-xs checkbox-primary" checked></td>
+                    <td><input type="checkbox" class="checkbox checkbox-xs checkbox-primary"></td>
+                    <td><input type="checkbox" class="checkbox checkbox-xs checkbox-primary"></td>
+                    <td><input type="checkbox" class="checkbox checkbox-xs checkbox-primary"></td>
+                    <td><input type="checkbox" class="checkbox checkbox-xs checkbox-primary"></td>
+                </tr>
+                #endfor
+            </tbody>
+        </table>
+    </div>
+</div>
+#endexport
+#endextend

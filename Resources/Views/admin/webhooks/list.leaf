@@ -1,0 +1,23 @@
+#extend("admin/base"):
+#export("content"):
+<div class="flex justify-between items-center mb-6">
+    <h3 class="text-lg font-semibold">Webhooks</h3>
+    <button class="btn btn-primary btn-sm">+ New Webhook</button>
+</div>
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <table class="table">
+        <thead><tr><th>Name</th><th>URL</th><th>Enabled</th><th>Actions</th></tr></thead>
+        <tbody>
+            #for(webhook in webhooks):
+            <tr>
+                <td>#(webhook.name)</td>
+                <td class="font-mono text-xs">#(webhook.url)</td>
+                <td>#if(webhook.enabled):<span class="badge badge-success">Active</span>#else:<span class="badge">Inactive</span>#endif</td>
+                <td><button class="btn btn-ghost btn-xs">Edit</button></td>
+            </tr>
+            #endfor
+        </tbody>
+    </table>
+</div>
+#endexport
+#endextend

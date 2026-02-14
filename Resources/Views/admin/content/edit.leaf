@@ -1,0 +1,30 @@
+#extend("admin/base"):
+#export("content"):
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <h3 class="text-lg font-semibold mb-6">#(title)</h3>
+    <div id="entry-form" x-data="{ data: {} }">
+        <div class="form-control mb-4">
+            <label class="label"><span class="label-text">Data (JSON)</span></label>
+            <textarea x-model="data" class="textarea textarea-bordered h-48 font-mono" placeholder='{"title": "Hello"}'>#if(entry):#{entry.data}#endif</textarea>
+        </div>
+        <div class="form-control mb-4">
+            <label class="label"><span class="label-text">Status</span></label>
+            <select class="select select-bordered w-full max-w-xs" id="status">
+                <option value="draft" #if(entry.status == "draft"):selected#endif>Draft</option>
+                <option value="review" #if(entry.status == "review"):selected#endif>Review</option>
+                <option value="published" #if(entry.status == "published"):selected#endif>Published</option>
+            </select>
+        </div>
+        <button class="btn btn-primary" @click="
+            const method = '#if(entry):PUT#else:POST#endif';
+            const url = '/api/v1/#(contentType.slug)#if(entry):/#(entry.id)#endif';
+            fetch(url, {
+                method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({data: JSON.parse(document.querySelector('textarea').value), status: document.getElementById('status').value})
+            }).then(r => { if(r.ok) window.location='/admin/content/#(contentType.slug)'; else r.json().then(e => alert(e.reason)); })
+        ">Save</button>
+    </div>
+</div>
+#endexport
+#endextend

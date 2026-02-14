@@ -1,0 +1,31 @@
+#extend("admin/base"):
+#export("content"):
+<div class="bg-base-100 rounded-box shadow-sm p-6" x-data="{ locales: [{code:'en-US',name:'English (US)',default:true},{code:'es-MX',name:'Spanish (Mexico)',default:false}] }">
+    <h3 class="text-lg font-semibold mb-6">Locale Management</h3>
+    <table class="table">
+        <thead><tr><th>Code</th><th>Name</th><th>Default</th><th>Actions</th></tr></thead>
+        <tbody>
+            <template x-for="(locale, i) in locales" :key="i">
+                <tr>
+                    <td><code x-text="locale.code"></code></td>
+                    <td x-text="locale.name"></td>
+                    <td><input type="radio" name="default-locale" class="radio radio-primary radio-sm" :checked="locale.default"></td>
+                    <td><button @click="locales.splice(i, 1)" class="btn btn-error btn-xs btn-outline" x-show="!locale.default">Remove</button></td>
+                </tr>
+            </template>
+        </tbody>
+    </table>
+    <div class="flex gap-2 mt-4">
+        <input type="text" class="input input-bordered input-sm" placeholder="en-GB" id="new-locale-code">
+        <input type="text" class="input input-bordered input-sm" placeholder="English (UK)" id="new-locale-name">
+        <button @click="locales.push({code: document.getElementById('new-locale-code').value, name: document.getElementById('new-locale-name').value, default: false})" class="btn btn-primary btn-sm">Add Locale</button>
+    </div>
+    <h4 class="font-semibold mt-6 mb-2">Fallback Chains</h4>
+    <p class="text-sm text-base-content/60 mb-2">Configure which locale to fall back to when content is not available in the requested locale.</p>
+    <div class="form-control">
+        <label class="label"><span class="label-text text-xs">en-GB fallback chain</span></label>
+        <input type="text" class="input input-bordered input-sm" value="en-US, en" placeholder="Comma-separated locale codes">
+    </div>
+</div>
+#endexport
+#endextend

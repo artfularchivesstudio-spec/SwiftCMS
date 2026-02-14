@@ -1,0 +1,24 @@
+#extend("admin/base"):
+#export("content"):
+<div class="flex justify-between items-center mb-6">
+    <h3 class="text-lg font-semibold">Media Library</h3>
+    <label for="upload-modal" class="btn btn-primary btn-sm">+ Upload</label>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+    #for(file in files):
+    <div class="card bg-base-100 shadow-sm">
+        <figure class="h-32 bg-base-300 flex items-center justify-center">
+            #if(file.mimeType == "image/png" || file.mimeType == "image/jpeg"):
+            <img src="/#(file.storagePath)" alt="#(file.filename)" class="object-cover h-full w-full">
+            #else:
+            <span class="text-2xl">📄</span>
+            #endif
+        </figure>
+        <div class="card-body p-2">
+            <p class="text-xs truncate">#(file.filename)</p>
+        </div>
+    </div>
+    #endfor
+</div>
+#endexport
+#endextend

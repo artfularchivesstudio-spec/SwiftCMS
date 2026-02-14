@@ -1,0 +1,74 @@
+version: "3.8"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://swiftcms:swiftcms@postgres:5432/swiftcms
+      - REDIS_URL=redis://redis:6379
+      - MEILI_URL=http://meilisearch:7700
+      - MEILI_KEY=masterKey
+      - AUTH_PROVIDER=local
+      - JWT_SECRET=change-me-in-production
+      - ADMIN_EMAIL=admin@swiftcms.dev
+      - ADMIN_PASSWORD=admin123
+      - APP_URL=http://localhost:8080
+      - ALLOWED_ORIGINS=*
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: swiftcms
+      POSTGRES_PASSWORD: swiftcms
+      POSTGRES_DB: swiftcms
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swiftcms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_MASTER_KEY: masterKey
+      MEILI_ENV: development
+    volumes:
+      - meili_data:/meili_data
+
+volumes:
+  postgres_data:
+  redis_data:
+  meili_data:

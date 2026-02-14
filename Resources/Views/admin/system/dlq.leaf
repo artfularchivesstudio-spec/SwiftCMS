@@ -1,0 +1,24 @@
+#extend("admin/base"):
+#export("content"):
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <h3 class="text-lg font-semibold mb-6">Dead Letter Queue</h3>
+    <table class="table">
+        <thead><tr><th>Job Type</th><th>Failure Reason</th><th>Retries</th><th>Last Failed</th><th>Actions</th></tr></thead>
+        <tbody>
+            #for(entry in entries):
+            <tr>
+                <td>#(entry.jobType)</td>
+                <td class="text-xs max-w-xs truncate">#(entry.failureReason)</td>
+                <td>#(entry.retryCount)</td>
+                <td>#(entry.lastFailedAt)</td>
+                <td><button class="btn btn-warning btn-xs">Retry</button></td>
+            </tr>
+            #endfor
+            #if(count(entries) == 0):
+            <tr><td colspan="5" class="text-center text-base-content/50">No failed jobs</td></tr>
+            #endif
+        </tbody>
+    </table>
+</div>
+#endexport
+#endextend

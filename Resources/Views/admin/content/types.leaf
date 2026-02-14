@@ -1,0 +1,23 @@
+#extend("admin/base"):
+#export("content"):
+<div class="flex justify-between items-center mb-6">
+    <h3 class="text-lg font-semibold">Content Types</h3>
+    <a href="/admin/content-types/new" class="btn btn-primary btn-sm">+ New Type</a>
+</div>
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <table class="table">
+        <thead><tr><th>Name</th><th>Slug</th><th>Kind</th><th>Actions</th></tr></thead>
+        <tbody>
+            #for(type in contentTypes):
+            <tr>
+                <td><a href="/admin/content/#(type.slug)" class="link link-primary">#(type.displayName)</a></td>
+                <td><code>#(type.slug)</code></td>
+                <td><span class="badge badge-sm">#(type.kind)</span></td>
+                <td><a href="/admin/content/#(type.slug)" class="btn btn-ghost btn-xs">Manage</a></td>
+            </tr>
+            #endfor
+        </tbody>
+    </table>
+</div>
+#endexport
+#endextend

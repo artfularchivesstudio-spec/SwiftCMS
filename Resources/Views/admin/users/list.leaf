@@ -1,0 +1,19 @@
+#extend("admin/base"):
+#export("content"):
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <table class="table">
+        <thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Provider</th></tr></thead>
+        <tbody>
+            #for(user in users):
+            <tr>
+                <td>#(user.email)</td>
+                <td>#(user.displayName)</td>
+                <td><span class="badge badge-sm">#(user.role.name)</span></td>
+                <td>#(user.authProvider)</td>
+            </tr>
+            #endfor
+        </tbody>
+    </table>
+</div>
+#endexport
+#endextend

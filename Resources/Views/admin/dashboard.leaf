@@ -1,0 +1,43 @@
+#extend("admin/base"):
+#export("content"):
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="stat bg-base-100 rounded-box shadow-sm">
+        <div class="stat-title">Content Types</div>
+        <div class="stat-value text-primary">#(typeCount)</div>
+    </div>
+    <div class="stat bg-base-100 rounded-box shadow-sm">
+        <div class="stat-title">Total Entries</div>
+        <div class="stat-value text-secondary">#(entryCount)</div>
+    </div>
+    <div class="stat bg-base-100 rounded-box shadow-sm">
+        <div class="stat-title">System</div>
+        <div class="stat-value text-accent">OK</div>
+        <div class="stat-desc">All services running</div>
+    </div>
+</div>
+
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <h3 class="text-lg font-semibold mb-4">Recent Entries</h3>
+    <div class="overflow-x-auto">
+        <table class="table table-zebra">
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                </tr>
+            </thead>
+            <tbody>
+                #for(entry in recentEntries):
+                <tr>
+                    <td>#(entry.contentType)</td>
+                    <td><span class="badge badge-sm">#(entry.status)</span></td>
+                    <td>#(entry.createdAt)</td>
+                </tr>
+                #endfor
+            </tbody>
+        </table>
+    </div>
+</div>
+#endexport
+#endextend

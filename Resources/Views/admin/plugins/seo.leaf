@@ -1,0 +1,16 @@
+#extend("admin/base"):
+#export("content"):
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <h3 class="text-lg font-semibold mb-4">SEO Dashboard</h3>
+    <div class="stat">
+        <div class="stat-title">Published Entries</div>
+        <div class="stat-value text-primary">#(totalPublished)</div>
+        <div class="stat-desc">Entries visible in sitemap.xml</div>
+    </div>
+    <div class="mt-6">
+        <a href="/sitemap.xml" target="_blank" class="btn btn-outline btn-sm">View Sitemap</a>
+        <a href="/robots.txt" target="_blank" class="btn btn-outline btn-sm">View robots.txt</a>
+    </div>
+</div>
+#endexport
+#endextend

@@ -1,0 +1,79 @@
+#extend("admin/base"):
+#export("content"):
+<div class="bg-base-100 rounded-box shadow-sm p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-lg font-semibold">Version History</h3>
+        <a href="/admin/content/#(contentType)/#(entryId)" class="btn btn-ghost btn-sm">Back to Entry</a>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Version</th>
+                <th>Changed By</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            #for(version in versions):
+            <tr>
+                <td>
+                    <span class="badge badge-primary badge-sm">v#(version.version)</span>
+                    #if(isFirst(version)):
+                    <span class="badge badge-ghost badge-xs ml-1">original</span>
+                    #endif
+                </td>
+                <td>#(version.changedBy)</td>
+                <td>#(version.createdAt)</td>
+                <td class="flex gap-1">
+                    <button class="btn btn-ghost btn-xs"
+                        hx-get="/api/v1/#(contentType)/#(entryId)/versions/#(version.version)"
+                        hx-target="#version-detail">View</button>
+                    <button class="btn btn-warning btn-xs"
+                        hx-post="/api/v1/#(contentType)/#(entryId)/versions/#(version.version)/restore"
+                        hx-confirm="Restore to version #(version.version)? This creates a new version.">Restore</button>
+                </td>
+            </tr>
+            #endfor
+        </tbody>
+    </table>
+
+    <!-- Diff Viewer -->
+    <div class="mt-6">
+        <h4 class="font-semibold mb-2">Compare Versions</h4>
+        <div class="flex gap-4 mb-4">
+            <select class="select select-bordered select-sm" id="diff-from">
+                #for(version in versions):
+                <option value="#(version.version)">v#(version.version)</option>
+                #endfor
+            </select>
+            <span class="self-center">vs</span>
+            <select class="select select-bordered select-sm" id="diff-to">
+                #for(version in versions):
+                <option value="#(version.version)">v#(version.version)</option>
+                #endfor
+            </select>
+            <button class="btn btn-outline btn-sm" onclick="loadDiff()">Compare</button>
+        </div>
+        <div id="diff-result" class="bg-base-200 rounded p-4 font-mono text-sm hidden">
+            <!-- Diff output renders here -->
+        </div>
+    </div>
+
+    <div id="version-detail" class="mt-4"></div>
+</div>
+
+<script>
+function loadDiff() {
+    const from = document.getElementById('diff-from').value;
+    const to = document.getElementById('diff-to').value;
+    const el = document.getElementById('diff-result');
+    el.classList.remove('hidden');
+    el.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Loading diff...';
+
+    // In production: fetch diff from API
+    el.innerHTML = '<p class="text-base-content/60">Diff v' + from + ' → v' + to + ' (connect to live API for full diff)</p>';
+}
+</script>
+#endexport
+#endextend
